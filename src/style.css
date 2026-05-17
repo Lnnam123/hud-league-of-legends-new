@@ -1,0 +1,8 @@
+@import "tailwindcss";
+
+/* Transparent background for OBS browser-source overlays */
+html,
+body,
+#app {
+  background: transparent !important;
+}
