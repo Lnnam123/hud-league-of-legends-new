@@ -148,9 +148,8 @@ const objectiveIcon = computed(() => {
 }
 
 .respawn-timer-text {
-    font-size: 24px;
-    font-weight: bold;
-    font-weight: bolder;
+    font-size: 27px;
+    font-weight: 500;
     font-family: 'Compacta Std', sans-serif;
     padding-left: 10px;
     padding-right: 6px;
