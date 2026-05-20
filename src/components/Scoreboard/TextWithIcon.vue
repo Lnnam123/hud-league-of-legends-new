@@ -26,7 +26,9 @@ const props = defineProps<{
 .text-stretch-vertical {
     font-family: 'Compacta Std';
     display: inline-block;
-    font-size: 23px;
+    font-size: 27px;
+    font-weight: 500;
+    line-height: 1;
     -webkit-transform: scale(1, 1.5);
     /* Safari and Chrome */
     -moz-transform: scale(1, 1.5);

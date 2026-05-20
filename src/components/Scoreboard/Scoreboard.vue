@@ -162,7 +162,7 @@ const dateTimeNowString = new Date().toISOString();
     line-height: 1;
     color: #fff;
     font-size: 24px;
-    font-weight: bold;
+    font-weight: 400;
     justify-self: center;
     align-self: center;
     letter-spacing: var(--tracking-tight);

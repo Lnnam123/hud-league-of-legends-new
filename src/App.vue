@@ -14,13 +14,28 @@ import { Team } from "@bluebottle_gg/league-broadcast-client";
 import CompactTeamfight from "./components/Teamfight/CompactTeamfight.vue";
 import SmiteReaction from "./components/SmiteReaction/SmiteReaction.vue";
 import KillFeed from "./components/KillFeed/KillFeed.vue";
-
 const debugVisible = ref(true);
 const baronTimer = useIngameSelector((state) => state.gameData.baronPitTimer);
 const dragonTimer = useIngameSelector((state) => state.gameData.dragonPitTimer);
 const gameTime = useIngameSelector((state) => state.gameData.gameTime);
+
+// 1. Khai báo biến thời gian trận đấu (ví dụ: 1200 giây = 20 phút)
+const currentGameTime = ref(1200);
+
+// 2. Khai báo mock data giả lập team đang có bùa lợi Baron để test UI
+const yourTeamData = ref({
+  baronPowerPlay: {
+    active: true,
+    remaining: 150,
+    gold: 1500,
+    kills: 2,
+    deaths: 0
+  }
+});
+
 </script>
 
+ 
 <template>
   <div class="overlay">
 
@@ -42,8 +57,7 @@ const gameTime = useIngameSelector((state) => state.gameData.gameTime);
     <PlayerCameras class="overlay-playercameras" />
     <GoldGraph class="overlay-bottom" />
     <CompactTeamfight class="overlay-teamfight" />
-
-
+    
     <!-- Debug panel. Hide me in production! -->
     <!-- <div class="debug-wrapper">
       <button class="debug-toggle" @click="debugVisible = !debugVisible">
