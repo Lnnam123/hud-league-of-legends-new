@@ -34,10 +34,10 @@ const respawnTimeRemaining = computed(() => {
 })
 const formattedRespawnTime = computed(() => {
     if (respawnTimeRemaining.value === undefined) return "";
-    const time = respawnTimeRemaining.value;
+    const time = Math.ceil(respawnTimeRemaining.value);
     const minutes = Math.floor(time / 60);
-    const seconds = Math.ceil(time % 60);
-    return `${minutes.toString().padStart(2, "0")}:${seconds.toString().padStart(2, "0")}`;
+    const seconds = time % 60;
+    return `${minutes.toString().padStart(2, "")}:${seconds.toString().padStart(2, "0")}`;
 })
 
 const backgroundColor = computed(() => {
