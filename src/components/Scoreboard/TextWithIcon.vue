@@ -27,7 +27,7 @@ const props = defineProps<{
     font-family: 'Compacta Std';
     display: inline-block;
     font-size: 27px;
-    font-weight: 500;
+    font-weight: 400;
     line-height: 1;
     -webkit-transform: scale(1, 1.5);
     /* Safari and Chrome */

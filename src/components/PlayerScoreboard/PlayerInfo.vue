@@ -196,7 +196,7 @@ const resourceColor = computed(() => {
 
 .death-timer-text {
     color: white;
-    font-size: 24px;
+    font-size: 30px;
     font-family: "Compacta Std", sans-serif;
     text-shadow: 0 0 2px rgba(0, 0, 0, 1);
 }
