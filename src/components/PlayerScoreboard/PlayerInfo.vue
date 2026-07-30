@@ -69,6 +69,7 @@ const playerNameNoTag = computed(() => {
 const isDead = computed(() => isPlayerDead(props.scoreboardPlayer, gameTime.value))
 
 const buffBorderClass = computed(() => {
+  if (isDead.value) return ''
   const hasBaron = props.tabPlayer?.hasBaron ?? false
   const hasElder = props.tabPlayer?.hasElder ?? false
   if (hasBaron && hasElder) return 'buff-both'

@@ -39,7 +39,7 @@ const progressPercent = computed(() => {
         </div>
         <div class="info-box">
           <div class="info-text-wrapper">
-            <span class="gold-text text-stretch-vertical">+{{ gold }} G</span>
+            <span class="gold-text text-stretch-vertical">{{ gold > 0 ? '+' : '' }}{{ Math.round(gold) }} G</span>
             <span class="time-text">{{ formattedTime }}</span>
           </div>
         </div>
