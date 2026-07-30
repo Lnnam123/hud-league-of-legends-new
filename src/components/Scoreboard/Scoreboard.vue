@@ -77,7 +77,6 @@ const dateTimeNowString = new Date().toISOString()
   width: 850px;
   display: flex;
   flex-direction: column;
-  gap: 4px;
 }
 
 .row-clip {
@@ -125,7 +124,7 @@ const dateTimeNowString = new Date().toISOString()
 .top-row {
   height: 60px;
   background-color: rgba(0, 0, 0, 0.9);
-  border-radius: 4px;
+  border-radius: 4px 4px 0 0;
   border: 1px solid #ffffff55;
   box-sizing: border-box;
   overflow: hidden;
@@ -162,7 +161,7 @@ const dateTimeNowString = new Date().toISOString()
 }
 
 .bottom-row {
-  height: 28px;
+  height: 36px;
   background-color: rgba(0, 0, 0, 0.85);
   border-radius: 0 0 4px 4px;
   border: 1px solid #ffffff55;
@@ -171,14 +170,14 @@ const dateTimeNowString = new Date().toISOString()
   box-sizing: border-box;
   overflow: hidden;
   grid-template-columns: 1fr 60px 1fr;
-  grid-template-rows: 28px;
+  /* grid-template-rows: 25px; */
 }
 
 .game-time {
   margin: 0;
   line-height: 1;
   color: #fff;
-  font-size: 20px;
+  font-size: 25px;
   font-weight: 400;
   justify-self: center;
   align-self: center;

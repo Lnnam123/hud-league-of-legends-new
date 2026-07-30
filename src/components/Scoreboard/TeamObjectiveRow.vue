@@ -27,12 +27,12 @@ const props = defineProps<{
   isMocking?: boolean
 }>()
 
-function playerHasQuestComplete(player: ingameScoreboardBottomPlayerData) {
+function playerHasQuestComplete(player: ingameScoreboardBottomPlayerData, index: number) {
   if (props.isMocking) {
-    return player.respawnAt
+    return index === 4 // Simulate support quest complete in mock instead of using respawnAt
   }
   const roleItem = getRoleQuest(player)
-  if (!roleItem || !roleItem.stats || roleItem.stats.length < 3) {
+  if (!roleItem || !roleItem.stats || roleItem.stats.length < 2) {
     return false
   }
   if (roleItem.id === 1220) {
@@ -45,7 +45,7 @@ function playerHasQuestComplete(player: ingameScoreboardBottomPlayerData) {
 }
 
 function allQuestsComplete() {
-  return props.players.every(playerHasQuestComplete)
+  return props.players.every((player, index) => playerHasQuestComplete(player, index))
 }
 const roleIcons = [TopIcon, JungleIcon, MidIcon, BotIcon, SupportIcon]
 
@@ -91,15 +91,15 @@ function getDragonIcon(dragonType: string) {
         :key="i"
         class="flex items-center justify-center gap-1 rounded-full p-1 w-6 h-6 border"
         :style="{
-          borderColor: playerHasQuestComplete(player)
+          borderColor: playerHasQuestComplete(player, i)
             ? mirror
               ? 'var(--red-team-color)'
               : 'var(--blue-team-color)'
             : '#ffffff55',
-          backgroundColor: playerHasQuestComplete(player)
+          backgroundColor: playerHasQuestComplete(player, i)
             ? `color-mix(in srgb, ${mirror ? 'var(--red-team-color)' : 'var(--blue-team-color)'} 10%, transparent)`
             : '#00000066',
-          color: playerHasQuestComplete(player)
+          color: playerHasQuestComplete(player, i)
             ? mirror
               ? 'var(--red-team-color)'
               : 'var(--blue-team-color)'
