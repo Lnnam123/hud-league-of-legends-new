@@ -1,46 +1,95 @@
 <script setup lang="ts">
-import { ref } from "vue";
-import Scoreboard from "@/components/Scoreboard/Scoreboard.vue";
-import GoldGraph from "@/components/GoldGraph/GoldGraph.vue";
-import ConnectionStatus from "./components/Debug/ConnectionStatus.vue";
-import EventLog from "./components/Debug/EventLog.vue";
-import PlayerScoreboard from "./components/PlayerScoreboard/PlayerScoreboard.vue";
-import ObjectiveTimer from "./components/ObjectiveTimer/ObjectiveTimer.vue";
-import { useIngameSelector } from "./composables/useIngame";
-import MinimapFrame from "./components/Minimap/MinimapFrame.vue";
+import { ref, watch } from 'vue'
+import Scoreboard from '@/components/Scoreboard/Scoreboard.vue'
+import BaronPowerPlay from '@/components/Scoreboard/BaronPowerPlay.vue'
+import GoldGraph from '@/components/GoldGraph/GoldGraph.vue'
+import ConnectionStatus from './components/Debug/ConnectionStatus.vue'
+import EventLog from './components/Debug/EventLog.vue'
+import PlayerScoreboard from './components/PlayerScoreboard/PlayerScoreboard.vue'
+import ObjectiveTimer from './components/ObjectiveTimer/ObjectiveTimer.vue'
+import { useIngameSelector } from './composables/useIngame'
+import MinimapFrame from './components/Minimap/MinimapFrame.vue'
 // import LFrame from "./components/LFrame/LFrame.vue";
-import SkinDisplay from "./components/SidePanel/SkinDisplay.vue";
-import { Team } from "@bluebottle_gg/league-broadcast-client";
-import CompactTeamfight from "./components/Teamfight/CompactTeamfight.vue";
-import SmiteReaction from "./components/SmiteReaction/SmiteReaction.vue";
-import KillFeed from "./components/KillFeed/KillFeed.vue";
-const debugVisible = ref(true);
-const baronTimer = useIngameSelector((state) => state.gameData.baronPitTimer);
-const dragonTimer = useIngameSelector((state) => state.gameData.dragonPitTimer);
-const gameTime = useIngameSelector((state) => state.gameData.gameTime);
+import SkinDisplay from './components/SidePanel/SkinDisplay.vue'
+import { Team } from '@bluebottle_gg/league-broadcast-client'
+import CompactTeamfight from './components/Teamfight/CompactTeamfight.vue'
+import SmiteReaction from './components/SmiteReaction/SmiteReaction.vue'
+import KillFeed from './components/KillFeed/KillFeed.vue'
+import FadeTransition from './transitions/FadeTransition.vue'
+import { computed } from 'vue'
 
-// 1. Khai báo biến thời gian trận đấu (ví dụ: 1200 giây = 20 phút)
-const currentGameTime = ref(1200);
+const debugVisible = ref(true)
+const baronTimer = useIngameSelector((state) => state.gameData.baronPitTimer)
+const dragonTimer = useIngameSelector((state) => state.gameData.dragonPitTimer)
+const gameTime = useIngameSelector((state) => state.gameData.gameTime)
+const scoreboard = useIngameSelector((state) => state.gameData.scoreboard)
 
-// 2. Khai báo mock data giả lập team đang có bùa lợi Baron để test UI
-const yourTeamData = ref({
-  baronPowerPlay: {
-    active: true,
-    remaining: 150,
-    gold: 1500,
-    kills: 2,
-    deaths: 0
-  }
-});
+const blueBaronState = ref({ active: false, remaining: 0, gold: 0 })
+const redBaronState = ref({ active: false, remaining: 0, gold: 0 })
 
+watch(
+  [scoreboard, gameTime],
+  () => {
+    if (!scoreboard.value) {
+      blueBaronState.value.active = false
+      redBaronState.value.active = false
+      return
+    }
+
+    // Blue Team
+    const blueTeam = scoreboard.value.teams[0]
+    if (blueTeam?.baronPowerPlay) {
+      const remaining = blueTeam.baronPowerPlay.timeEnd - gameTime.value
+      if (remaining > 0) {
+        blueBaronState.value = {
+          active: true,
+          remaining: remaining,
+          gold: blueTeam.baronPowerPlay.gold,
+        }
+      } else {
+        blueBaronState.value.active = false
+        blueBaronState.value.remaining = 0
+      }
+    } else {
+      blueBaronState.value.active = false
+    }
+
+    // Red Team
+    const redTeam = scoreboard.value.teams[1]
+    if (redTeam?.baronPowerPlay) {
+      const remaining = redTeam.baronPowerPlay.timeEnd - gameTime.value
+      if (remaining > 0) {
+        redBaronState.value = {
+          active: true,
+          remaining: remaining,
+          gold: redTeam.baronPowerPlay.gold,
+        }
+      } else {
+        redBaronState.value.active = false
+        redBaronState.value.remaining = 0
+      }
+    } else {
+      redBaronState.value.active = false
+    }
+  },
+  { deep: true, immediate: true },
+)
+
+const blueBaron = computed(() => blueBaronState.value)
+const redBaron = computed(() => redBaronState.value)
 </script>
 
- 
 <template>
   <div class="overlay">
-
-    <!-- Core features available in all tiers -->
-    <Scoreboard class="overlay-scoreboard" />
+    <div class="overlay-scoreboard-wrapper">
+      <div class="overlay-baron-pp left" :class="{ 'baron-visible': blueBaron.active }">
+        <BaronPowerPlay :remaining="blueBaron.remaining" :gold="blueBaron.gold" :mirror="false" />
+      </div>
+      <Scoreboard class="overlay-scoreboard" />
+      <div class="overlay-baron-pp right" :class="{ 'baron-visible': redBaron.active }">
+        <BaronPowerPlay :remaining="redBaron.remaining" :gold="redBaron.gold" :mirror="true" />
+      </div>
+    </div>
     <PlayerScoreboard class="overlay-playerscoreboard" />
     <div class="overlay-objective-timers">
       <ObjectiveTimer :objective-data="baronTimer" :game-time="gameTime" />
@@ -57,7 +106,7 @@ const yourTeamData = ref({
     <PlayerCameras class="overlay-playercameras" />
     <GoldGraph class="overlay-bottom" />
     <CompactTeamfight class="overlay-teamfight" />
-    
+
     <!-- Debug panel. Hide me in production! -->
     <!-- <div class="debug-wrapper">
       <button class="debug-toggle" @click="debugVisible = !debugVisible">
@@ -75,7 +124,6 @@ const yourTeamData = ref({
 <style>
 /* Broadcast overlay: transparent, full-viewport, no scrollbars */
 @layer base {
-
   *,
   *::before,
   *::after {
@@ -96,7 +144,11 @@ body {
   height: 1080px;
   overflow: hidden;
   background: transparent;
-  font-family: "Inter", system-ui, -apple-system, sans-serif;
+  font-family:
+    'Inter',
+    system-ui,
+    -apple-system,
+    sans-serif;
   color: #e2e8f0;
 }
 </style>
@@ -108,11 +160,47 @@ body {
   height: 1080px;
 }
 
-.overlay-scoreboard {
+.overlay-scoreboard-wrapper {
   position: absolute;
   top: 10px;
   left: 50%;
   transform: translateX(-50%);
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+}
+
+.overlay-scoreboard {
+  z-index: 10;
+}
+
+.overlay-baron-pp {
+  position: absolute;
+  top: 0;
+  height: 60px;
+  z-index: 1;
+  overflow: hidden;
+  opacity: 0;
+  transition:
+    clip-path 0.4s cubic-bezier(0.25, 1, 0.5, 1),
+    opacity 0.3s ease-in-out;
+  pointer-events: none;
+}
+
+.overlay-baron-pp.right {
+  left: calc(100% + 8px);
+  clip-path: inset(0 100% 0 0);
+}
+
+.overlay-baron-pp.left {
+  right: calc(100% + 8px);
+  clip-path: inset(0 0 0 100%);
+}
+
+.overlay-baron-pp.baron-visible {
+  clip-path: inset(0 0 0 0);
+  opacity: 1;
+  pointer-events: auto;
 }
 
 .overlay-bottom {
@@ -198,7 +286,9 @@ body {
   border-radius: 4px;
   cursor: pointer;
   user-select: none;
-  transition: background 0.15s, color 0.15s;
+  transition:
+    background 0.15s,
+    color 0.15s;
 }
 
 .debug-toggle:hover {
@@ -215,7 +305,9 @@ body {
 /* slide-fade transition */
 .debug-slide-enter-active,
 .debug-slide-leave-active {
-  transition: opacity 0.2s ease, transform 0.2s ease;
+  transition:
+    opacity 0.2s ease,
+    transform 0.2s ease;
 }
 
 .debug-slide-enter-from,
