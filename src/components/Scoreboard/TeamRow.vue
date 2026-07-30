@@ -76,7 +76,7 @@ watch(
       v-if="team.teamIconUrl"
       :src="client.getCacheUrl(team.teamIconUrl)"
       alt="Team icon"
-      class="h-7 w-auto"
+      class="h-8 max-w-15 object-contain"
       @error="handleImageError"
       @load="handleImageLoad"
     />
@@ -128,9 +128,7 @@ watch(
             :style="{
               fontFamily: `'Inter', sans-serif`,
               fontSize: '12px',
-              lineHeight: '1',
-              zIndex: 1,
-              marginTop: '2px'
+              lineHeight: '1'
             }"
           >{{
             goldDiffText

@@ -2,6 +2,7 @@
 import { ref, watch } from 'vue'
 import Scoreboard from '@/components/Scoreboard/Scoreboard.vue'
 import BaronPowerPlay from '@/components/Scoreboard/BaronPowerPlay.vue'
+import ElderDragonPowerPlay from '@/components/Scoreboard/ElderDragonPowerPlay.vue'
 import GoldGraph from '@/components/GoldGraph/GoldGraph.vue'
 import ConnectionStatus from './components/Debug/ConnectionStatus.vue'
 import EventLog from './components/Debug/EventLog.vue'
@@ -26,6 +27,9 @@ const scoreboard = useIngameSelector((state) => state.gameData.scoreboard)
 
 const blueBaronState = ref({ active: false, remaining: 0, gold: 0 })
 const redBaronState = ref({ active: false, remaining: 0, gold: 0 })
+
+const blueElderState = ref({ active: false, remaining: 0 })
+const redElderState = ref({ active: false, remaining: 0 })
 
 watch(
   [scoreboard, gameTime],
@@ -54,6 +58,21 @@ watch(
       blueBaronState.value.active = false
     }
 
+    if (blueTeam?.dragonPowerPlay) {
+      const remaining = blueTeam.dragonPowerPlay.timeEnd - gameTime.value
+      if (remaining > 0) {
+        blueElderState.value = {
+          active: true,
+          remaining: remaining,
+        }
+      } else {
+        blueElderState.value.active = false
+        blueElderState.value.remaining = 0
+      }
+    } else {
+      blueElderState.value.active = false
+    }
+
     // Red Team
     const redTeam = scoreboard.value.teams[1]
     if (redTeam?.baronPowerPlay) {
@@ -71,23 +90,50 @@ watch(
     } else {
       redBaronState.value.active = false
     }
+
+    if (redTeam?.dragonPowerPlay) {
+      const remaining = redTeam.dragonPowerPlay.timeEnd - gameTime.value
+      if (remaining > 0) {
+        redElderState.value = {
+          active: true,
+          remaining: remaining,
+        }
+      } else {
+        redElderState.value.active = false
+        redElderState.value.remaining = 0
+      }
+    } else {
+      redElderState.value.active = false
+    }
   },
   { deep: true, immediate: true },
 )
 
 const blueBaron = computed(() => blueBaronState.value)
 const redBaron = computed(() => redBaronState.value)
+const blueElder = computed(() => blueElderState.value)
+const redElder = computed(() => redElderState.value)
 </script>
 
 <template>
   <div class="overlay">
     <div class="overlay-scoreboard-wrapper">
-      <div class="overlay-baron-pp left" :class="{ 'baron-visible': blueBaron.active }">
-        <BaronPowerPlay :remaining="blueBaron.remaining" :gold="blueBaron.gold" :mirror="false" />
+      <div class="overlay-power-play-container left">
+        <div class="overlay-baron-pp left" :class="{ 'baron-visible': blueBaron.active }">
+          <BaronPowerPlay :remaining="blueBaron.remaining" :gold="blueBaron.gold" :mirror="false" />
+        </div>
+        <div class="overlay-elder-pp left" :class="{ 'elder-visible': blueElder.active }">
+          <ElderDragonPowerPlay :remaining="blueElder.remaining" :mirror="false" />
+        </div>
       </div>
       <Scoreboard class="overlay-scoreboard" />
-      <div class="overlay-baron-pp right" :class="{ 'baron-visible': redBaron.active }">
-        <BaronPowerPlay :remaining="redBaron.remaining" :gold="redBaron.gold" :mirror="true" />
+      <div class="overlay-power-play-container right">
+        <div class="overlay-baron-pp right" :class="{ 'baron-visible': redBaron.active }">
+          <BaronPowerPlay :remaining="redBaron.remaining" :gold="redBaron.gold" :mirror="true" />
+        </div>
+        <div class="overlay-elder-pp right" :class="{ 'elder-visible': redElder.active }">
+          <ElderDragonPowerPlay :remaining="redElder.remaining" :mirror="true" />
+        </div>
       </div>
     </div>
     <PlayerScoreboard class="overlay-playerscoreboard" />
@@ -187,17 +233,33 @@ body {
   pointer-events: none;
 }
 
-.overlay-baron-pp.right {
+.overlay-elder-pp {
+  position: absolute;
+  top: 0;
+  height: 60px;
+  z-index: 1;
+  overflow: hidden;
+  opacity: 0;
+  transition:
+    clip-path 0.4s cubic-bezier(0.25, 1, 0.5, 1),
+    opacity 0.3s ease-in-out;
+  pointer-events: none;
+}
+
+.overlay-baron-pp.right,
+.overlay-elder-pp.right {
   left: calc(100% + 8px);
   clip-path: inset(0 100% 0 0);
 }
 
-.overlay-baron-pp.left {
+.overlay-baron-pp.left,
+.overlay-elder-pp.left {
   right: calc(100% + 8px);
   clip-path: inset(0 0 0 100%);
 }
 
-.overlay-baron-pp.baron-visible {
+.overlay-baron-pp.baron-visible,
+.overlay-elder-pp.elder-visible {
   clip-path: inset(0 0 0 0);
   opacity: 1;
   pointer-events: auto;
