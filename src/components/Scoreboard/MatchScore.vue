@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { BestOfType } from '@bluebottle_gg/league-broadcast-client'
+import { computed } from 'vue'
 
 const props = defineProps<{
   bestOf: BestOfType
@@ -7,6 +8,11 @@ const props = defineProps<{
   fillColor: string
   mirror?: boolean
 }>()
+
+const winsRequired = computed(() => {
+  if (props.bestOf === BestOfType.BestOf1) return 0
+  return Math.ceil(props.bestOf / 2)
+})
 </script>
 
 <template>
@@ -20,10 +26,10 @@ const props = defineProps<{
       ></div>
     </div>
 
-    <div id="scores" class="w-2 flex flex-col gap-1.5" v-if="bestOf !== BestOfType.BestOf1">
+    <div id="scores" class="w-2 flex flex-col gap-1.5" v-if="winsRequired > 0">
       <div
         class="flex flex-1 w-full grow border border-white/55 rounded-xs p-px"
-        v-for="i in bestOf"
+        v-for="i in winsRequired"
         :key="i"
       >
         <div
