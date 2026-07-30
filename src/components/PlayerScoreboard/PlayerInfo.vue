@@ -357,30 +357,19 @@ const resourceColor = computed(() => {
 }
 
 .buff-baron::before {
-  border: 3px solid rgba(155, 48, 255, 0.4);
-  animation: baron-pulse 1.5s ease-in-out infinite;
+  border: 3px solid rgba(155, 48, 255, 1);
 }
 
 .buff-elder::before {
-  border: 3px solid #c0c0c0;
+  border: 3px solid #00e5e5;
 }
 
 .buff-both::before {
   inset: -1px;
-  background: conic-gradient(#9b30ff, #c0c0c0, #9b30ff, #c0c0c0, #9b30ff);
+  background: conic-gradient(#9b30ff, #00e5e5, #9b30ff, #00e5e5, #9b30ff);
   animation: swirl 2s linear infinite;
   mask: radial-gradient(farthest-side, transparent calc(100% - 4px), #000 calc(100% - 3px));
   -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 4px), #000 calc(100% - 3px));
-}
-
-@keyframes baron-pulse {
-  0%,
-  100% {
-    border-color: rgba(155, 48, 255, 0.3);
-  }
-  50% {
-    border-color: rgba(155, 48, 255, 1);
-  }
 }
 
 @keyframes swirl {
