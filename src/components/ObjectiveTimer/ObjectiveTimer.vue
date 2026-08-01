@@ -5,7 +5,7 @@ import {
   type iObjectiveRespawnData,
 } from '@bluebottle_gg/league-broadcast-client'
 import { computed } from 'vue'
-import Baron from '@/assets/baron/baron.png'
+import Baron from '@/assets/baron/baron-icon.svg?url'
 import Herald from '@/assets/baron/herald.png'
 import Grub from '@/assets/baron/grubs.png'
 import AirDragon from '@/assets/dragon/air.png'

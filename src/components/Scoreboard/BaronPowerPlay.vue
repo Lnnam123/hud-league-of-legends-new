@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, ref, onMounted } from 'vue'
-import BaronIcon from '@/assets/baron/baron.png'
+import BaronIcon from '@/assets/baron/baron-icon.svg?url'
 import { useClient } from '@/client'
 
 const props = defineProps<{
