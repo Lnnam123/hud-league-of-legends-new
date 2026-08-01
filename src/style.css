@@ -6,3 +6,10 @@ body,
 #app {
   background: transparent !important;
 }
+
+@font-face {
+  font-family: 'CHANEY Ultra Extended';
+  src: url('./assets/CHANEY-UltraExtended.otf') format('opentype');
+  font-weight: normal;
+  font-style: normal;
+}

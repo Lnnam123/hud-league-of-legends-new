@@ -81,15 +81,18 @@ watch(
       @load="handleImageLoad"
     />
     <div
-      class="flex flex-col min-w-0"
+      class="flex flex-col min-w-0 flex-1"
       :style="{
         textAlign: mirror ? 'right' : 'left',
       }"
     >
       <p
-        class="font-extrabold text-xl"
+        class="font-extrabold text-[16px] uppercase"
         :style="{
           color: mirror ? 'var(--red-team-color)' : 'var(--blue-team-color)',
+          fontFamily: `'CHANEY Ultra Extended', sans-serif`,
+          lineHeight: '1',
+          marginBottom: '2px'
         }"
       >
         {{ team.teamTag }}
@@ -98,49 +101,48 @@ watch(
         {{ team.infoText }}
       </p>
     </div>
-    <TextWithIcon
-      class="-translate-y-1"
-      :class="mirror ? ['pr-2'] : ['pl-2']"
-      :icon-url="Tower"
-      :text="team.towers.toString()"
-      :mirror="mirror"
-    />
-    <div class="relative flex flex-col items-start">
+    <div class="flex items-center gap-6" :class="mirror ? 'flex-row-reverse' : 'flex-row'">
       <TextWithIcon
-        :class="mirror ? ['pr-2'] : ['pl-2']"
-        :icon-url="Gold"
-        :text="formattedGold"
+        class="-translate-y-1"
+        :icon-url="Tower"
+        :text="team.towers.toString()"
         :mirror="mirror"
       />
-      <FadeTransition name="fade" mode="out-in">
-        <div
-          id="gold-diff"
-          v-if="showGoldDiff"
-          class="absolute top-6.5 min-w-9 px-1 h-4 flex items-center justify-center"
-          :style="{
-            'background-color': mirror ? 'var(--red-team-color)' : 'var(--blue-team-color)',
-            left: mirror ? 'auto' : '32px',
-            color: 'white',
-          }"
-        >
-          <span
-            class="text-gold-diff capitalize"
+      <div class="relative flex flex-col items-start">
+        <TextWithIcon
+          :icon-url="Gold"
+          :text="formattedGold"
+          :mirror="mirror"
+        />
+        <FadeTransition name="fade" mode="out-in">
+          <div
+            id="gold-diff"
+            v-if="showGoldDiff"
+            class="absolute top-6.5 min-w-9 px-1 h-4 flex items-center justify-center"
             :style="{
-              fontFamily: `'Inter', sans-serif`,
-              fontSize: '12px',
-              lineHeight: '1'
+              'background-color': mirror ? 'var(--red-team-color)' : 'var(--blue-team-color)',
+              left: mirror ? 'auto' : '32px',
+              color: 'white',
             }"
-          >{{
-            goldDiffText
-          }}</span>
-        </div>
-      </FadeTransition>
+          >
+            <span
+              class="text-gold-diff capitalize"
+              :style="{
+                fontFamily: `'Inter', sans-serif`,
+                fontSize: '12px',
+                lineHeight: '1'
+              }"
+            >{{
+              goldDiffText
+            }}</span>
+          </div>
+        </FadeTransition>
+      </div>
+      <span
+        class="text-3xl font-extrabold spcing tracking-tight text-stretch-vertical capitalize"
+        :class="mirror ? 'mr-4' : 'ml-4'"
+      >{{ team.kills }}</span>
     </div>
-    <span
-      class="text-3xl font-extrabold spcing tracking-tight text-stretch-vertical capitalize"
-      :class="mirror ? 'mr-auto ml-2' : 'ml-auto mr-2 '"
-      >{{ team.kills }}</span
-    >
   </div>
 </template>
 
