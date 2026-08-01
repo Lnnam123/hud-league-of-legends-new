@@ -8,7 +8,7 @@ import ConnectionStatus from './components/Debug/ConnectionStatus.vue'
 import EventLog from './components/Debug/EventLog.vue'
 import PlayerScoreboard from './components/PlayerScoreboard/PlayerScoreboard.vue'
 import ObjectiveTimer from './components/ObjectiveTimer/ObjectiveTimer.vue'
-import { useIngameSelector } from './composables/useIngame'
+import { useIngameSelector, useIsInGame, useIngameConnected } from './composables/useIngame'
 import MinimapFrame from './components/Minimap/MinimapFrame.vue'
 // import LFrame from "./components/LFrame/LFrame.vue";
 import SkinDisplay from './components/SidePanel/SkinDisplay.vue'
@@ -24,6 +24,8 @@ const baronTimer = useIngameSelector((state) => state.gameData.baronPitTimer)
 const dragonTimer = useIngameSelector((state) => state.gameData.dragonPitTimer)
 const gameTime = useIngameSelector((state) => state.gameData.gameTime)
 const scoreboard = useIngameSelector((state) => state.gameData.scoreboard)
+const isInGame = useIsInGame()
+const isConnected = useIngameConnected()
 
 const blueBaronState = ref({ active: false, remaining: 0, gold: 0 })
 const redBaronState = ref({ active: false, remaining: 0, gold: 0 })
@@ -32,11 +34,13 @@ const blueElderState = ref({ active: false, remaining: 0 })
 const redElderState = ref({ active: false, remaining: 0 })
 
 watch(
-  [scoreboard, gameTime],
+  [scoreboard, gameTime, isInGame, isConnected],
   () => {
-    if (!scoreboard.value) {
+    if (!isConnected.value || !isInGame.value || !scoreboard.value) {
       blueBaronState.value.active = false
       redBaronState.value.active = false
+      blueElderState.value.active = false
+      redElderState.value.active = false
       return
     }
 
@@ -196,6 +200,12 @@ body {
     -apple-system,
     sans-serif;
   color: #e2e8f0;
+}
+
+/* DEV MODE: Cho phép click và chọn text để dễ dàng sử dụng DevTools Inspect Element */
+* {
+  pointer-events: auto !important;
+  user-select: auto !important;
 }
 </style>
 

@@ -33,10 +33,12 @@ const shutdown = computed(() => {
     return ''
   }
 
-  return props.scoreboardPlayer.shutdown.toLocaleString('en-US', {
-    notation: 'compact',
-    maximumFractionDigits: 0,
-  })
+  return (
+    props.scoreboardPlayer.shutdown.toLocaleString('en-US', {
+      notation: 'compact',
+      maximumFractionDigits: 0,
+    }) + 'G'
+  )
 })
 
 const respawnTimeRemaining = computed(() => {
@@ -217,10 +219,10 @@ const resourceColor = computed(() => {
     </div>
 
     <div class="player-stats" :class="mirror ? 'text-start' : 'text-end'">
-      <span class="absolute text-[#E2B793] w-full -translate-y-2">{{
+      <span class="absolute text-[#E2B793] w-full -translate-y-3">{{
         scoreboardPlayer?.creepScore
       }}</span>
-      <span class="absolute w-full translate-y-2"
+      <span class="absolute w-full translate-y-3"
         >{{ scoreboardPlayer?.kills }}/{{ scoreboardPlayer?.deaths }}/{{
           scoreboardPlayer?.assists
         }}</span
@@ -258,13 +260,14 @@ const resourceColor = computed(() => {
   position: absolute;
   bottom: -5px;
   text-shadow: 0 0 2px rgba(0, 0, 0, 1);
+  z-index: 10;
 }
 
 .shutdown-text {
   position: absolute;
-  top: 0px;
-  width: 100%;
-  font-size: 15px;
+  top: 1px;
+  font-size: 12px;
+  font-weight: 400;
   text-align: center;
   color: #e2b793;
   /* Add a prominent text border for better visibility since champion icons can be bright, dark, etc. */
@@ -357,19 +360,19 @@ const resourceColor = computed(() => {
 }
 
 .buff-baron::before {
-  border: 3px solid rgba(155, 48, 255, 1);
+  border: 2px solid rgba(155, 48, 255, 1);
 }
 
 .buff-elder::before {
-  border: 3px solid #00e5e5;
+  border: 2px solid #00e5e5;
 }
 
 .buff-both::before {
   inset: -1px;
   background: conic-gradient(#9b30ff, #00e5e5, #9b30ff, #00e5e5, #9b30ff);
   animation: swirl 2s linear infinite;
-  mask: radial-gradient(farthest-side, transparent calc(100% - 4px), #000 calc(100% - 3px));
-  -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 4px), #000 calc(100% - 3px));
+  mask: radial-gradient(farthest-side, transparent calc(100% - 3px), #000 calc(100% - 2px));
+  -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 3px), #000 calc(100% - 2px));
 }
 
 @keyframes swirl {

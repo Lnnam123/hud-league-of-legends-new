@@ -159,7 +159,7 @@ function getStacks() {
   position: relative;
   display: inline-block;
   line-height: 0;
-  font-family: 'Bebas Neue', sans-serif;
+  font-family: 'Inter', sans-serif;
 }
 
 .item-slot-content .cooldown-clip {
@@ -190,6 +190,7 @@ function getStacks() {
 
 .item-slot-content .vision-score {
   position: absolute;
+  font-size: 15px;
   top: 0;
   left: 0;
   text-align: center;

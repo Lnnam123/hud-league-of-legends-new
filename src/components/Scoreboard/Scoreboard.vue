@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
-import { useIngameSelector } from '@/composables/useIngame'
+import { useIngameSelector, useIsInGame, useIngameConnected } from '@/composables/useIngame'
 import TeamRow from './TeamRow.vue'
 import TeamObjectiveRow from './TeamObjectiveRow.vue'
 import { GameState } from '@bluebottle_gg/league-broadcast-client'
@@ -10,6 +10,8 @@ import { handleImageError, handleImageLoad } from '@/utils/imageUtils'
 const scoreboard = useIngameSelector((s) => s.gameData.scoreboard)
 const players = useIngameSelector((s) => s.gameData.scoreboardBottom)
 const isMocking = useIngameSelector((s) => (s.gameState as number) === GameState.Mocking)
+const isInGame = useIsInGame()
+const isConnected = useIngameConnected()
 const client = useClient()
 
 const seasonIcon = ref<string | null>(null)
@@ -35,7 +37,7 @@ const dateTimeNowString = new Date().toISOString()
 
 <template>
   <Transition name="scoreboard" :duration="{ enter: 850, leave: 750 }">
-    <div v-if="scoreboard && blue && red" class="scoreboard">
+    <div v-if="isConnected && scoreboard && blue && red && isInGame" class="scoreboard">
       <div class="row-clip">
         <div class="top-row">
           <TeamRow

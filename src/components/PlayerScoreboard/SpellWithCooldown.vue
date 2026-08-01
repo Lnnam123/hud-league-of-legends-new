@@ -71,7 +71,8 @@ const cooldownPercent = computed(() => {
   margin: 0;
   text-align: center;
   color: white;
-  font-family: 'Compacta Std', sans-serif;
+  font-family: 'Inter', sans-serif;
+  font-weight: 700;
   font-size: var(--cooldown-font-size, 1em);
   line-height: 1;
   display: flex;
