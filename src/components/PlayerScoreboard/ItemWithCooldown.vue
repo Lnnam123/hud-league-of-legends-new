@@ -186,6 +186,7 @@ function getStacks() {
   right: 0;
   text-align: end;
   transform: translate(0px, 3px);
+  font-size: 14px;
 }
 
 .item-slot-content .vision-score {
@@ -205,6 +206,7 @@ function getStacks() {
   text-align: end;
   transform: translate(0px, 0px);
   width: 100%;
+  font-size: 14px;
 }
 
 .item-slot-content .cooldown {

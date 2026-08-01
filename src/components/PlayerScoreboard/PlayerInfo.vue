@@ -234,7 +234,7 @@ const resourceColor = computed(() => {
 <style lang="css" scoped>
 #player-info-container {
   display: grid;
-  grid-template-columns: 24px 1fr 3fr 1fr;
+  grid-template-columns: 24px 1fr 3fr 55px;
   grid-template-rows: minmax(0, 1fr);
   gap: 0px;
   padding: 4px;
@@ -302,7 +302,7 @@ const resourceColor = computed(() => {
   grid-template-columns: 1fr;
   grid-template-rows: 1fr 2fr 2fr;
   gap: 2px;
-  width: 80%;
+  width: 60%;
   height: 100%;
   padding-top: 2px;
   padding-left: 4px;
@@ -319,6 +319,7 @@ const resourceColor = computed(() => {
   font-family: 'Bebas Neue', sans-serif;
   text-shadow: 0 0 2px rgba(0, 0, 0, 1);
   position: relative;
+  white-space: nowrap;
 }
 
 /* Grayscale all columns except the death timer when player is dead */

@@ -65,9 +65,9 @@ const dateTimeNowString = new Date().toISOString()
       </div>
       <div class="row-clip">
         <div class="bottom-row">
-          <TeamObjectiveRow :team="blue" :players="bluePlayers" :is-mocking="isMocking" />
+          <TeamObjectiveRow :team="blue" :players="bluePlayers" :enemy-players="redPlayers" :is-mocking="isMocking" />
           <p class="game-time text-stretch-vertical">{{ gameTime }}</p>
-          <TeamObjectiveRow :team="red" :players="redPlayers" mirror :is-mocking="isMocking" />
+          <TeamObjectiveRow :team="red" :players="redPlayers" :enemy-players="bluePlayers" mirror :is-mocking="isMocking" />
         </div>
       </div>
     </div>

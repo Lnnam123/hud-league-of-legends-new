@@ -19,35 +19,97 @@ import Earth from '@/assets/dragon/earth.png'
 import Water from '@/assets/dragon/water.png'
 import Elder from '@/assets/dragon/elder.png'
 import { handleImageError, handleImageLoad } from '@/utils/imageUtils'
+import { computed, ref, watch, onUnmounted } from 'vue'
 
 const props = defineProps<{
   team: ingameScoreboardTeamData
   players: ingameScoreboardBottomPlayerData[]
+  enemyPlayers?: ingameScoreboardBottomPlayerData[]
   mirror?: boolean
   isMocking?: boolean
 }>()
 
-function playerHasQuestComplete(player: ingameScoreboardBottomPlayerData, index: number) {
-  if (props.isMocking) {
-    return index === 4 // Simulate support quest complete in mock instead of using respawnAt
-  }
-  const roleItem = getRoleQuest(player)
-  if (!roleItem || !roleItem.stats || roleItem.stats.length < 2) {
+function isQuestItem(item: { id: number }) {
+  if (!item) {
     return false
   }
-  if (roleItem.id === 1220) {
+
+  if (item.id >= 1090 && item.id <= 1095) {
+    return true
+  }
+
+  if (item.id >= 1200 && item.id <= 1250) {
+    return true
+  }
+
+  return false
+}
+
+function playerHasQuestComplete(player: ingameScoreboardBottomPlayerData) {
+  if (props.isMocking) {
+    return player.respawnAt
+  }
+  const roleItem = getRoleQuest(player)
+  if (!roleItem || !isQuestItem(roleItem)) {
+    return true
+  }
+  if (!roleItem.stats || roleItem.stats.length < 2) {
+    return false
+  }
+  if (roleItem.id === 1220 || roleItem.id === 1206) {
     return true
   }
   const current = roleItem.stats[0] ?? 0
   const max = roleItem.stats[1] ?? 1
-  const value = Math.min(100, Math.max(0, (current / max) * 100))
-  return value >= 100
+  return current >= max
 }
 
-function allQuestsComplete() {
-  return props.players.every((player, index) => playerHasQuestComplete(player, index))
-}
+const allQuestsAreDone = computed(() => {
+  const ourQuestsComplete = props.players.every(playerHasQuestComplete)
+  const enemyQuestsComplete = props.enemyPlayers ? props.enemyPlayers.every(playerHasQuestComplete) : true
+  return ourQuestsComplete && enemyQuestsComplete
+})
+
+const showQuests = ref(true)
+let timeoutId: ReturnType<typeof setTimeout> | null = null
+
+watch(allQuestsAreDone, (isDone) => {
+  if (isDone) {
+    if (!timeoutId) {
+      timeoutId = setTimeout(() => {
+        showQuests.value = false
+      }, 30000)
+    }
+  } else {
+    if (timeoutId) {
+      clearTimeout(timeoutId)
+      timeoutId = null
+    }
+    showQuests.value = true
+  }
+}, { immediate: true })
+
+onUnmounted(() => {
+  if (timeoutId) clearTimeout(timeoutId)
+})
 const roleIcons = [TopIcon, JungleIcon, MidIcon, BotIcon, SupportIcon]
+
+// Elder respawns, so a team can stack an unbounded number of them. Collapse
+// all elder kills into one icon with a count so the row can't overflow into
+// the quest icons; elementals are capped at 4 and stay individual.
+const dragonDisplay = computed(() => {
+  const entries: { type: string; count: number }[] = []
+  for (const dragon of props.team.dragons) {
+    const isElder = dragon.toLowerCase() === 'elder'
+    const existing = isElder ? entries.find((e) => e.type.toLowerCase() === 'elder') : undefined
+    if (existing) {
+      existing.count++
+    } else {
+      entries.push({ type: dragon, count: 1 })
+    }
+  }
+  return entries
+})
 
 function getDragonIcon(dragonType: string) {
   switch (dragonType.toLowerCase()) {
@@ -87,19 +149,19 @@ function getDragonIcon(dragonType: string) {
     >
       <div
         v-for="(player, i) in players"
-        v-if="!allQuestsComplete()"
+        v-if="showQuests"
         :key="i"
         class="flex items-center justify-center gap-1 rounded-full p-1 w-6 h-6 border"
         :style="{
-          borderColor: playerHasQuestComplete(player, i)
+          borderColor: playerHasQuestComplete(player)
             ? mirror
               ? 'var(--red-team-color)'
               : 'var(--blue-team-color)'
             : '#ffffff55',
-          backgroundColor: playerHasQuestComplete(player, i)
+          backgroundColor: playerHasQuestComplete(player)
             ? `color-mix(in srgb, ${mirror ? 'var(--red-team-color)' : 'var(--blue-team-color)'} 10%, transparent)`
             : '#00000066',
-          color: playerHasQuestComplete(player, i)
+          color: playerHasQuestComplete(player)
             ? mirror
               ? 'var(--red-team-color)'
               : 'var(--blue-team-color)'
@@ -112,12 +174,11 @@ function getDragonIcon(dragonType: string) {
     </TransitionGroup>
 
     <TextWithIcon
-      class="h-6"
       :icon-url="Grubs"
       :text="props.team.grubs.toString()"
       :mirror="mirror"
+      text-width="1.5ch"
       :class="mirror ? ['pr-2'] : ['pl-2']"
-      small-text
     />
 
     <TransitionGroup
@@ -127,15 +188,26 @@ function getDragonIcon(dragonType: string) {
       class="flex flex-row justify-start h-full grow items-center gap-2 mx-4"
       :class="mirror ? 'flex-row' : 'flex-row-reverse'"
     >
-      <img
-        v-for="(dragon, i) in team.dragons"
+      <!--
+        The row flows outward from the clock, so the count sits on the outer
+        side of its icon (away from the neighboring dragons) with a tight gap
+        to make clear which icon it multiplies.
+      -->
+      <div
+        v-for="(dragon, i) in dragonDisplay"
         :key="i"
-        :src="getDragonIcon(dragon)"
-        alt="Dragon icon"
-        class="h-5 w-auto"
-        @error="handleImageError"
-        @load="handleImageLoad"
-      />
+        class="flex items-center gap-0.5"
+        :class="mirror ? 'flex-row' : 'flex-row-reverse'"
+      >
+        <img
+          :src="getDragonIcon(dragon.type)"
+          alt="Dragon icon"
+          class="h-5 w-auto"
+          @error="handleImageError"
+          @load="handleImageLoad"
+        />
+        <span v-if="dragon.count > 1" class="text-base font-bold">{{ dragon.count }}x</span>
+      </div>
     </TransitionGroup>
   </div>
 </template>

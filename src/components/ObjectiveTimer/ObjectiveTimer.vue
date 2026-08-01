@@ -139,14 +139,14 @@ const objectiveIcon = computed(() => {
 <style lang="css" scoped>
 .respawn-timer-container {
   height: 48px;
-  border: 1px solid rgba(127, 127, 127, 0.55);
+  border: 1px solid #ffffff55;
   border-radius: 4px;
   display: flex;
   flex-direction: row;
   justify-content: flex-start;
   align-items: center;
   padding: 4px;
-  background-color: rgba(0, 0, 0, 0.55);
+  background-color: rgba(0, 0, 0, 0.9);
 }
 
 .respawn-timer-icon-container {
