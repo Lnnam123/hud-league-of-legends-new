@@ -108,7 +108,7 @@ const dragonDisplay = computed(() => {
       entries.push({ type: dragon, count: 1 })
     }
   }
-  return entries
+  return entries.slice(0, 4)
 })
 
 function getDragonIcon(dragonType: string) {

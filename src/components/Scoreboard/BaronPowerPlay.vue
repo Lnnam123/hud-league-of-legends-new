@@ -55,7 +55,7 @@ const progressPercent = computed(() => {
 .baron-power-play {
   display: flex;
   height: 60px;
-  border-radius: 4px;
+  border-radius: 0;
   border: 1px solid #ffffff33;
   /* overflow: hidden; */
   box-sizing: border-box;

@@ -92,6 +92,9 @@ onUnmounted(() => {
             :level-up-level="levelUpQueue.getActive('Order', i - 1)?.level"
             :level-up-visible="levelUpQueue.isVisible('Order', i - 1)"
             :level-up-exiting="levelUpQueue.isExiting('Order', i - 1)"
+            :item-buy-icon="itemBuyQueue.getActive('Order', i - 1)?.itemIcon"
+            :item-buy-visible="itemBuyQueue.isVisible('Order', i - 1)"
+            :item-buy-exiting="itemBuyQueue.isExiting('Order', i - 1)"
           />
           <GoldDiff
             style="grid-area: gold-diff"
@@ -106,6 +109,9 @@ onUnmounted(() => {
             :level-up-level="levelUpQueue.getActive('Chaos', i - 1)?.level"
             :level-up-visible="levelUpQueue.isVisible('Chaos', i - 1)"
             :level-up-exiting="levelUpQueue.isExiting('Chaos', i - 1)"
+            :item-buy-icon="itemBuyQueue.getActive('Chaos', i - 1)?.itemIcon"
+            :item-buy-visible="itemBuyQueue.isVisible('Chaos', i - 1)"
+            :item-buy-exiting="itemBuyQueue.isExiting('Chaos', i - 1)"
           />
           <PlayerItems
             style="grid-area: chaos-items"
@@ -113,20 +119,6 @@ onUnmounted(() => {
             :tab-player="tabs?.['Chaos']?.players[i - 1]"
             mirror
             :grayscale="isPlayerDead(scoreboard?.teams[1]?.players[i - 1], gameTime)"
-          />
-          <!-- Single item-buy overlay per side, spanning both items+info columns -->
-          <ItemBuyNotification
-            v-if="itemBuyQueue.getActive('Order', i - 1)"
-            :item-icon="itemBuyQueue.getActive('Order', i - 1)?.itemIcon"
-            :visible="itemBuyQueue.isVisible('Order', i - 1)"
-            :exiting="itemBuyQueue.isExiting('Order', i - 1)"
-          />
-          <ItemBuyNotification
-            v-if="itemBuyQueue.getActive('Chaos', i - 1)"
-            :item-icon="itemBuyQueue.getActive('Chaos', i - 1)?.itemIcon"
-            :visible="itemBuyQueue.isVisible('Chaos', i - 1)"
-            :exiting="itemBuyQueue.isExiting('Chaos', i - 1)"
-            mirror
           />
         </div>
       </div>

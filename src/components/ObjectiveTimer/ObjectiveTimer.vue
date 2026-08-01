@@ -75,7 +75,7 @@ const backgroundColor = computed(() => {
     case IngameObjectiveType.DRAGON_WATER:
       return '#2A514A'
     case IngameObjectiveType.DRAGON_ELDER:
-      return '#B7C9E2'
+      return '#008b8b'
     default:
       return '#B7C9E2'
   }

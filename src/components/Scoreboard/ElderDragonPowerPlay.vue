@@ -5,6 +5,7 @@ import ElderDragonIcon from '@/assets/dragon/elder.png'
 const props = defineProps<{
   remaining: number
   mirror?: boolean
+  compact?: boolean
 }>()
 
 const formattedTime = computed(() => {
@@ -19,22 +20,36 @@ const progressPercent = computed(() => {
 </script>
 
 <template>
-  <div class="elder-power-play" :class="mirror ? 'flex-row' : 'flex-row-reverse'">
-    <div class="content-box">
-      <div class="content-top">
-        <div class="elder-icon-box">
-          <img :src="ElderDragonIcon" class="elder-icon" />
-        </div>
-        <div class="info-box">
-          <div class="info-text-wrapper">
-            <span class="time-text">{{ formattedTime }}</span>
+  <div class="elder-power-play" :class="[mirror ? 'flex-row' : 'flex-row-reverse', { compact }]">
+    <template v-if="compact">
+      <div class="compact-container" :class="mirror ? 'flex-row' : 'flex-row-reverse'">
+        <div class="compact-progress-container">
+          <div class="compact-progress-track">
+            <div class="compact-progress-bar" :style="{ width: progressPercent + '%' }"></div>
           </div>
         </div>
+        <div class="compact-icon-box">
+          <img :src="ElderDragonIcon" class="elder-icon" />
+        </div>
       </div>
-      <div class="progress-bar-container">
-        <div class="progress-bar" :style="{ width: progressPercent + '%' }"></div>
+    </template>
+    <template v-else>
+      <div class="content-box">
+        <div class="content-top">
+          <div class="elder-icon-box">
+            <img :src="ElderDragonIcon" class="elder-icon" />
+          </div>
+          <div class="info-box">
+            <div class="info-text-wrapper">
+              <span class="time-text">{{ formattedTime }}</span>
+            </div>
+          </div>
+        </div>
+        <div class="progress-bar-container">
+          <div class="progress-bar" :style="{ width: progressPercent + '%' }"></div>
+        </div>
       </div>
-    </div>
+    </template>
   </div>
 </template>
 
@@ -42,7 +57,7 @@ const progressPercent = computed(() => {
 .elder-power-play {
   display: flex;
   height: 60px;
-  border-radius: 4px;
+  border-radius: 0;
   border: 1px solid #ffffff33;
   overflow: hidden;
   box-sizing: border-box;
@@ -133,5 +148,65 @@ const progressPercent = computed(() => {
 
 .flex-row-reverse .progress-bar {
   float: right;
+}
+
+.elder-power-play.compact {
+  height: 36px;
+  border: none;
+  background: transparent;
+}
+
+.compact-container {
+  display: flex;
+  height: 100%;
+  width: 175px;
+  border: 1px solid #ffffff33;
+  overflow: hidden;
+  background-color: rgba(0, 0, 0, 0.85);
+  box-sizing: border-box;
+}
+
+.compact-progress-container {
+  flex: 1;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  padding: 0 6px;
+}
+
+.compact-progress-track {
+  width: 100%;
+  height: 8px;
+  background-color: rgba(0, 229, 229, 0.3);
+}
+
+.compact-progress-bar {
+  height: 100%;
+  width: 100%;
+  background-color: #00e5e5;
+  transition: width 1s linear;
+  border-radius: 0;
+}
+
+.flex-row-reverse .compact-progress-bar {
+  float: right;
+  margin-left: auto;
+}
+
+.compact-icon-box {
+  width: 36px;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: #0d7077;
+  flex-shrink: 0;
+}
+
+.compact-icon-box .elder-icon {
+  width: 28px;
+  height: 28px;
+  object-fit: contain;
+  filter: drop-shadow(0 0 2px rgba(0, 229, 229, 0.5));
 }
 </style>

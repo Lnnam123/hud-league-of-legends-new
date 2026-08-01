@@ -126,8 +126,8 @@ const redElder = computed(() => redElderState.value)
         <div class="overlay-baron-pp left" :class="{ 'baron-visible': blueBaron.active }">
           <BaronPowerPlay :remaining="blueBaron.remaining" :gold="blueBaron.gold" :mirror="false" />
         </div>
-        <div class="overlay-elder-pp left" :class="{ 'elder-visible': blueElder.active }">
-          <ElderDragonPowerPlay :remaining="blueElder.remaining" :mirror="false" />
+        <div class="overlay-elder-pp left" :class="{ 'elder-visible': blueElder.active, 'stacked': blueBaron.active }">
+          <ElderDragonPowerPlay :remaining="blueElder.remaining" :mirror="false" :compact="blueBaron.active" />
         </div>
       </div>
       <Scoreboard class="overlay-scoreboard" />
@@ -135,8 +135,8 @@ const redElder = computed(() => redElderState.value)
         <div class="overlay-baron-pp right" :class="{ 'baron-visible': redBaron.active }">
           <BaronPowerPlay :remaining="redBaron.remaining" :gold="redBaron.gold" :mirror="true" />
         </div>
-        <div class="overlay-elder-pp right" :class="{ 'elder-visible': redElder.active }">
-          <ElderDragonPowerPlay :remaining="redElder.remaining" :mirror="true" />
+        <div class="overlay-elder-pp right" :class="{ 'elder-visible': redElder.active, 'stacked': redBaron.active }">
+          <ElderDragonPowerPlay :remaining="redElder.remaining" :mirror="true" :compact="redBaron.active" />
         </div>
       </div>
     </div>
@@ -252,8 +252,13 @@ body {
   opacity: 0;
   transition:
     clip-path 0.4s cubic-bezier(0.25, 1, 0.5, 1),
-    opacity 0.3s ease-in-out;
+    opacity 0.3s ease-in-out,
+    top 0.3s ease-in-out;
   pointer-events: none;
+}
+
+.overlay-elder-pp.stacked {
+  top: 60px;
 }
 
 .overlay-baron-pp.right,

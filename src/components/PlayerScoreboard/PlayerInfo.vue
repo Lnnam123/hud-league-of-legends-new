@@ -13,6 +13,7 @@ import SpellWithCooldown from './SpellWithCooldown.vue'
 import { useClient } from '@/client'
 import ProgressBar from './ProgressBar.vue'
 import LevelUpNotification from './LevelUpNotification.vue'
+import ItemBuyNotification from './ItemBuyNotification.vue'
 import { useIngameSelector } from '@/composables/useIngame'
 
 const props = defineProps<{
@@ -22,6 +23,9 @@ const props = defineProps<{
   levelUpLevel?: number | null
   levelUpVisible?: boolean
   levelUpExiting?: boolean
+  itemBuyIcon?: string
+  itemBuyVisible?: boolean
+  itemBuyExiting?: boolean
 }>()
 
 const client = useClient()
@@ -162,6 +166,12 @@ const resourceColor = computed(() => {
         :level="levelUpLevel ?? undefined"
         :visible="levelUpVisible ?? false"
         :exiting="levelUpExiting ?? false"
+        :mirror="mirror"
+      />
+      <ItemBuyNotification
+        :item-icon="itemBuyIcon"
+        :visible="itemBuyVisible ?? false"
+        :exiting="itemBuyExiting ?? false"
         :mirror="mirror"
       />
     </div>
@@ -369,16 +379,9 @@ const resourceColor = computed(() => {
 }
 
 .buff-both::before {
-  inset: -1px;
-  background: conic-gradient(#9b30ff, #00e5e5, #9b30ff, #00e5e5, #9b30ff);
-  animation: swirl 2s linear infinite;
-  mask: radial-gradient(farthest-side, transparent calc(100% - 3px), #000 calc(100% - 2px));
-  -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 3px), #000 calc(100% - 2px));
+  border: 2px solid;
+  border-color: #9b30ff #9b30ff #00e5e5 #00e5e5;
 }
 
-@keyframes swirl {
-  to {
-    transform: rotate(360deg);
-  }
-}
+
 </style>

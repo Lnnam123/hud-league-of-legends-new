@@ -26,6 +26,7 @@ defineProps<{
   align-items: center;
   justify-content: center;
   background: black;
+  border-radius: 0px;
   pointer-events: none;
   z-index: 10;
   transform: translateY(100%);
@@ -33,6 +34,10 @@ defineProps<{
   transition:
     transform 0.35s ease-out,
     opacity 0.35s ease-out;
+}
+
+.item-buy-overlay.is-chaos {
+  background: black;
 }
 
 .item-buy-overlay.is-visible {
@@ -47,8 +52,8 @@ defineProps<{
 
 .item-buy-content {
   display: flex;
+  flex-direction: column;
   align-items: center;
-  justify-content: center;
   width: 100%;
   height: 100%;
 }
@@ -56,6 +61,6 @@ defineProps<{
 .item-icon {
   width: 100%;
   height: 100%;
-  object-fit: cover;
+  object-fit: contain;
 }
 </style>
