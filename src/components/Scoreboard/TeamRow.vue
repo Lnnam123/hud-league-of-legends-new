@@ -3,7 +3,7 @@ import { BestOfType, ingameScoreboardTeamData } from '@bluebottle_gg/league-broa
 import MatchScore from './MatchScore.vue'
 import { useClient } from '@/client'
 import TextWithIcon from './TextWithIcon.vue'
-import Gold from '@/assets/gold.png'
+import Gold from '@/assets/Gold_colored_icon.svg?url'
 import Tower from '@/assets/tower.png'
 import { computed, ref, watch } from 'vue'
 import FadeTransition from '../../transitions/FadeTransition.vue'
@@ -35,13 +35,13 @@ const goldDiff = computed(() => {
 const goldDiffText = computed(() => {
   const diff = goldDiff.value
   if (diff === null || diff <= 0) return ''
-  const formattedDiff = diff >= 1000 ? (diff / 1000).toFixed(1) + 'K' : diff.toString()
+  const formattedDiff = diff >= 300 ? (diff / 1000).toFixed(1) + 'K' : diff.toString()
   return '+' + formattedDiff
 })
 
-// Hysteresis: show above 500, hide below 300 - prevent flickering
-const SHOW_THRESHOLD = 500
-const HIDE_THRESHOLD = 300
+// Hysteresis: show above 300, hide below 200 - prevent flickering
+const SHOW_THRESHOLD = 300
+const HIDE_THRESHOLD = 200
 const showGoldDiff = ref(false)
 
 watch(
@@ -110,6 +110,7 @@ watch(
       />
       <div class="relative flex flex-col items-start">
         <TextWithIcon
+          class="brightness-0 invert"
           :icon-url="Gold"
           :text="formattedGold"
           :mirror="mirror"
@@ -121,7 +122,8 @@ watch(
             class="absolute top-6.5 min-w-9 px-1 h-4 flex items-center justify-center"
             :style="{
               'background-color': mirror ? 'var(--red-team-color)' : 'var(--blue-team-color)',
-              left: mirror ? 'auto' : '32px',
+              left: mirror ? '0' : 'auto',
+              right: mirror ? 'auto' : '0',
               color: 'white',
             }"
           >

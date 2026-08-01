@@ -17,7 +17,7 @@ const winsRequired = computed(() => {
 
 <template>
   <div class="flex gap-1" :class="mirror ? 'flex-row-reverse' : 'flex-row'">
-    <div id="color-display" class="flex w-2 border border-white/55 rounded-xs p-px">
+    <div id="color-display" class="flex w-1">
       <div
         class="grow"
         :style="{
@@ -28,7 +28,7 @@ const winsRequired = computed(() => {
 
     <div id="scores" class="w-2 flex flex-col gap-1.5" v-if="winsRequired > 0">
       <div
-        class="flex flex-1 w-full grow border border-white/55 rounded-xs p-px"
+        class="flex flex-1 w-full grow border border-white/55 p-px"
         v-for="i in winsRequired"
         :key="i"
       >
