@@ -6,6 +6,7 @@ const props = defineProps<{
   remaining: number
   mirror?: boolean
   compact?: boolean
+  fixedWidth?: number
 }>()
 
 const formattedTime = computed(() => {
@@ -22,7 +23,7 @@ const progressPercent = computed(() => {
 <template>
   <div class="elder-power-play" :class="[mirror ? 'flex-row' : 'flex-row-reverse', { compact }]">
     <template v-if="compact">
-      <div class="compact-container" :class="mirror ? 'flex-row' : 'flex-row-reverse'">
+      <div class="compact-container" :class="mirror ? 'flex-row' : 'flex-row-reverse'" :style="{ width: fixedWidth ? fixedWidth + 'px' : '185px' }">
         <div class="compact-progress-container">
           <div class="compact-progress-track">
             <div class="compact-progress-bar" :style="{ width: progressPercent + '%' }"></div>
@@ -159,7 +160,8 @@ const progressPercent = computed(() => {
 .compact-container {
   display: flex;
   height: 100%;
-  width: 175px;
+  width: 185px; /* Fallback */
+  border-radius: 0;
   border: 1px solid #ffffff33;
   overflow: hidden;
   background-color: rgba(0, 0, 0, 0.85);

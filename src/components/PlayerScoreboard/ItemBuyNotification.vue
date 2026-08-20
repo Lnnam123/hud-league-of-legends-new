@@ -4,6 +4,7 @@ defineProps<{
   visible: boolean
   exiting: boolean
   mirror?: boolean
+  grayscale?: boolean
 }>()
 </script>
 
@@ -13,7 +14,7 @@ defineProps<{
     :class="{ 'is-visible': visible, 'is-exiting': exiting, 'is-chaos': mirror }"
   >
     <div class="item-buy-content">
-      <img v-if="itemIcon" class="item-icon" :src="itemIcon" />
+      <img v-if="itemIcon" class="item-icon" :style="{ filter: grayscale ? 'grayscale(1)' : 'none' }" :src="itemIcon" />
     </div>
   </div>
 </template>

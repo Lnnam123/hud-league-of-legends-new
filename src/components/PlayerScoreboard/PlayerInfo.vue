@@ -173,6 +173,7 @@ const resourceColor = computed(() => {
         :visible="itemBuyVisible ?? false"
         :exiting="itemBuyExiting ?? false"
         :mirror="mirror"
+        :grayscale="isDead"
       />
     </div>
     <div class="flex flex-col">

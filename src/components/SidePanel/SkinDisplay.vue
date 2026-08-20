@@ -2,7 +2,6 @@
 import { useIngameSelector } from '@/composables/useIngame'
 import type { ingameSkinDisplayPlayerData, Team } from '@bluebottle_gg/league-broadcast-client'
 import { computed, ref, watch, onUnmounted } from 'vue'
-
 import TopIcon from '@/assets/lane/top-placeholder-cropped.svg?url'
 import JungleIcon from '@/assets/lane/jgl-placeholder-cropped.svg?url'
 import MidIcon from '@/assets/lane/mid-placeholder-cropped.svg?url'

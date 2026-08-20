@@ -17,7 +17,32 @@ import CompactTeamfight from './components/Teamfight/CompactTeamfight.vue'
 import SmiteReaction from './components/SmiteReaction/SmiteReaction.vue'
 import KillFeed from './components/KillFeed/KillFeed.vue'
 import FadeTransition from './transitions/FadeTransition.vue'
-import { computed } from 'vue'
+import { computed, onMounted, onUnmounted } from 'vue'
+
+const blueBaronEl = ref<HTMLElement | null>(null)
+const redBaronEl = ref<HTMLElement | null>(null)
+const blueBaronWidth = ref<number | undefined>(undefined)
+const redBaronWidth = ref<number | undefined>(undefined)
+
+let resizeObserver: ResizeObserver | null = null
+
+onMounted(() => {
+  resizeObserver = new ResizeObserver((entries) => {
+    for (const entry of entries) {
+      if (entry.target === blueBaronEl.value) {
+        blueBaronWidth.value = entry.contentRect.width
+      } else if (entry.target === redBaronEl.value) {
+        redBaronWidth.value = entry.contentRect.width
+      }
+    }
+  })
+  if (blueBaronEl.value) resizeObserver.observe(blueBaronEl.value)
+  if (redBaronEl.value) resizeObserver.observe(redBaronEl.value)
+})
+
+onUnmounted(() => {
+  if (resizeObserver) resizeObserver.disconnect()
+})
 
 const debugVisible = ref(true)
 const baronTimer = useIngameSelector((state) => state.gameData.baronPitTimer)
@@ -123,20 +148,20 @@ const redElder = computed(() => redElderState.value)
   <div class="overlay">
     <div class="overlay-scoreboard-wrapper">
       <div class="overlay-power-play-container left">
-        <div class="overlay-baron-pp left" :class="{ 'baron-visible': blueBaron.active }">
+        <div class="overlay-baron-pp left" :class="{ 'baron-visible': blueBaron.active }" ref="blueBaronEl">
           <BaronPowerPlay :remaining="blueBaron.remaining" :gold="blueBaron.gold" :mirror="false" />
         </div>
         <div class="overlay-elder-pp left" :class="{ 'elder-visible': blueElder.active, 'stacked': blueBaron.active }">
-          <ElderDragonPowerPlay :remaining="blueElder.remaining" :mirror="false" :compact="blueBaron.active" />
+          <ElderDragonPowerPlay :remaining="blueElder.remaining" :mirror="false" :compact="blueBaron.active" :fixed-width="blueBaronWidth" />
         </div>
       </div>
       <Scoreboard class="overlay-scoreboard" />
       <div class="overlay-power-play-container right">
-        <div class="overlay-baron-pp right" :class="{ 'baron-visible': redBaron.active }">
+        <div class="overlay-baron-pp right" :class="{ 'baron-visible': redBaron.active }" ref="redBaronEl">
           <BaronPowerPlay :remaining="redBaron.remaining" :gold="redBaron.gold" :mirror="true" />
         </div>
         <div class="overlay-elder-pp right" :class="{ 'elder-visible': redElder.active, 'stacked': redBaron.active }">
-          <ElderDragonPowerPlay :remaining="redElder.remaining" :mirror="true" :compact="redBaron.active" />
+          <ElderDragonPowerPlay :remaining="redElder.remaining" :mirror="true" :compact="redBaron.active" :fixed-width="redBaronWidth" />
         </div>
       </div>
     </div>
@@ -229,6 +254,8 @@ body {
 .overlay-scoreboard {
   z-index: 10;
 }
+
+
 
 .overlay-baron-pp {
   position: absolute;
