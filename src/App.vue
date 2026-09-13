@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { ref, watch } from 'vue'
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
+import { useRoute } from 'vue-router'
 import Scoreboard from '@/components/Scoreboard/Scoreboard.vue'
 import BaronPowerPlay from '@/components/Scoreboard/BaronPowerPlay.vue'
 import ElderDragonPowerPlay from '@/components/Scoreboard/ElderDragonPowerPlay.vue'
@@ -17,7 +18,26 @@ import CompactTeamfight from './components/Teamfight/CompactTeamfight.vue'
 import SmiteReaction from './components/SmiteReaction/SmiteReaction.vue'
 import KillFeed from './components/KillFeed/KillFeed.vue'
 import FadeTransition from './transitions/FadeTransition.vue'
-import { computed, onMounted, onUnmounted } from 'vue'
+import ControlDashboard from './views/ControlDashboard.vue'
+import { useHudSettings } from './composables/useHudSettings'
+
+const { settings } = useHudSettings()
+const route = useRoute()
+const isControl = computed(() => route.path === '/control')
+
+watch(
+  isControl,
+  (val) => {
+    if (typeof document !== 'undefined') {
+      if (val) {
+        document.body.classList.add('control-page')
+      } else {
+        document.body.classList.remove('control-page')
+      }
+    }
+  },
+  { immediate: true },
+)
 
 const blueBaronEl = ref<HTMLElement | null>(null)
 const redBaronEl = ref<HTMLElement | null>(null)
@@ -49,8 +69,18 @@ const baronTimer = useIngameSelector((state) => state.gameData.baronPitTimer)
 const dragonTimer = useIngameSelector((state) => state.gameData.dragonPitTimer)
 const gameTime = useIngameSelector((state) => state.gameData.gameTime)
 const scoreboard = useIngameSelector((state) => state.gameData.scoreboard)
+const teamfight = useIngameSelector((state) => state.gameData.teamfightDamageOverview)
 const isInGame = useIsInGame()
 const isConnected = useIngameConnected()
+
+const isTeamfightActive = computed(() => {
+  if (teamfight.value?.damageDealt?.length) return true
+  return !!settings.value.compactTeamfight
+})
+
+const showPlayerScoreboard = computed(() => {
+  return !!settings.value.scoreboardBottom && !isTeamfightActive.value
+})
 
 const blueBaronState = ref({ active: false, remaining: 0, gold: 0 })
 const redBaronState = ref({ active: false, remaining: 0, gold: 0 })
@@ -145,7 +175,8 @@ const redElder = computed(() => redElderState.value)
 </script>
 
 <template>
-  <div class="overlay">
+  <ControlDashboard v-if="isControl" />
+  <div v-else class="overlay">
     <div class="overlay-scoreboard-wrapper">
       <div class="overlay-power-play-container left">
         <div class="overlay-baron-pp left" :class="{ 'baron-visible': blueBaron.active }" ref="blueBaronEl">
@@ -165,7 +196,7 @@ const redElder = computed(() => redElderState.value)
         </div>
       </div>
     </div>
-    <PlayerScoreboard class="overlay-playerscoreboard" />
+    <PlayerScoreboard :show="showPlayerScoreboard" class="overlay-playerscoreboard" />
     <div class="overlay-objective-timers">
       <ObjectiveTimer :objective-data="baronTimer" :game-time="gameTime" />
       <ObjectiveTimer :objective-data="dragonTimer" :game-time="gameTime" />
@@ -180,19 +211,7 @@ const redElder = computed(() => redElderState.value)
     <KillFeed class="overlay-killfeed" />
     <PlayerCameras class="overlay-playercameras" />
     <GoldGraph class="overlay-bottom" />
-    <CompactTeamfight class="overlay-teamfight" />
-
-    <!-- Debug panel. Hide me in production! -->
-    <!-- <div class="debug-wrapper">
-      <button class="debug-toggle" @click="debugVisible = !debugVisible">
-        {{ debugVisible ? "<" : ">" }} </button>
-          <Transition name="debug-slide">
-            <div v-if="debugVisible" class="debug">
-              <ConnectionStatus class="debug-connection" />
-              <EventLog class="debug-eventlog" />
-            </div>
-          </Transition>
-    </div> -->
+    <CompactTeamfight :show="isTeamfightActive" class="overlay-teamfight" />
   </div>
 </template>
 
@@ -213,12 +232,24 @@ const redElder = computed(() => redElderState.value)
   }
 }
 
-html,
-body {
+body:not(.control-page) {
   width: 1920px;
   height: 1080px;
   overflow: hidden;
   background: transparent;
+  font-family:
+    'Inter',
+    system-ui,
+    -apple-system,
+    sans-serif;
+  color: #e2e8f0;
+}
+
+body.control-page {
+  width: 100vw;
+  height: 100vh;
+  overflow: auto;
+  background: #0d1117;
   font-family:
     'Inter',
     system-ui,

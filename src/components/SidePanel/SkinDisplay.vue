@@ -16,12 +16,23 @@ const props = defineProps<{
   team: Team
 }>()
 
+import { useDirectSkinDisplay } from '@/composables/useDirectSkinDisplay'
+import { useHudSettings } from '@/composables/useHudSettings'
+
 const skinData = useIngameSelector((s) => s.gameData.skinDisplay)
+const directSkins = useDirectSkinDisplay()
+const { settings } = useHudSettings()
 const client = useClient()
 
 const teamData = computed(() => {
-  if (!skinData.value?.teams) return null
-  return skinData.value.teams[props.team - 1] // team is 1-based index, since team 0 is "none"
+  if (!settings.value.skinDisplayEnabled) return null
+  if (settings.value.skinDisplayTeam === 'order' && props.team !== 1) return null
+  if (settings.value.skinDisplayTeam === 'chaos' && props.team !== 2) return null
+
+  if (skinData.value?.teams?.length) {
+    return skinData.value.teams[props.team - 1]
+  }
+  return directSkins.teams.value[props.team - 1] || null
 })
 
 const currentPlayerIndex = ref(0)
@@ -51,7 +62,7 @@ function stopRotation() {
 }
 
 watch(
-  () => !!skinData.value,
+  () => !!teamData.value,
   (isActive) => {
     if (isActive) {
       currentPlayerIndex.value = 0
@@ -158,20 +169,29 @@ function getRoleStyle(index: number) {
 
 /* Panel enter/exit transitions */
 .skin-slide-left-enter-active,
+.skin-slide-right-enter-active {
+  transition:
+    transform 0.6s cubic-bezier(0.16, 1, 0.3, 1),
+    opacity 0.4s ease-out;
+}
+
 .skin-slide-left-leave-active,
-.skin-slide-right-enter-active,
 .skin-slide-right-leave-active {
-  transition: transform 0.3s ease-out;
+  transition:
+    transform 0.5s cubic-bezier(0.7, 0, 0.84, 0),
+    opacity 0.4s ease-in;
 }
 
 .skin-slide-left-enter-from,
 .skin-slide-left-leave-to {
-  transform: translateX(-110%) translateY(-50%);
+  transform: translateX(-120%) translateY(-50%);
+  opacity: 0;
 }
 
 .skin-slide-right-enter-from,
 .skin-slide-right-leave-to {
-  transform: translateX(110%) translateY(-50%);
+  transform: translateX(120%) translateY(-50%);
+  opacity: 0;
 }
 
 .skin-panel {

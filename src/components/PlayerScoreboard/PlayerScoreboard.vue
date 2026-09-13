@@ -9,6 +9,15 @@ import { useClient } from '@/client'
 import { onUnmounted } from 'vue'
 import { useNotificationQueue, type PlayerNotification } from '@/composables/useNotificationQueue'
 
+const props = withDefaults(
+  defineProps<{
+    show?: boolean
+  }>(),
+  {
+    show: true,
+  },
+)
+
 const scoreboard = useIngameSelector((s) => s.gameData.scoreboardBottom)
 const tabs = useIngameSelector((s) => s.gameData.tabs)
 const gameTime = useIngameSelector((s) => s.gameData.gameTime)
@@ -74,7 +83,7 @@ onUnmounted(() => {
 
 <template>
   <Transition name="slide-down">
-    <div id="player-scoreboard" v-if="scoreboard && tabs">
+    <div id="player-scoreboard" v-if="show && scoreboard && tabs">
       <!-- <PlayerCamera show :team="Team.Order" :scoreboard="scoreboard"
                 class="border rounded-t-sm border-r-0.5 border-b-0 border-white/55" /> -->
       <div class="player-grid">
@@ -161,13 +170,16 @@ onUnmounted(() => {
   border-bottom: none;
 }
 
-.slide-down-enter-active,
+.slide-down-enter-active {
+  transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1) 0.25s;
+}
+
 .slide-down-leave-active {
-  transition: transform 0.5s ease;
+  transition: transform 0.35s cubic-bezier(0.7, 0, 0.84, 0);
 }
 
 .slide-down-enter-from,
 .slide-down-leave-to {
-  transform: translateY(100%);
+  transform: translateY(110%);
 }
 </style>

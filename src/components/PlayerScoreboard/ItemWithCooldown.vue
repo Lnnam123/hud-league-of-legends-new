@@ -31,9 +31,7 @@ function getItemIcon(item: itemWithAsset): string {
 }
 
 function getItemText(item: itemWithAsset): string {
-  if (item.count === 1 && item.charges === 0) {
-    return ''
-  }
+  if (!item) return ''
 
   if (item.charges && item.charges > 0) {
     if (item.charges >= 1000) {
@@ -42,7 +40,7 @@ function getItemText(item: itemWithAsset): string {
     return Math.floor(item.charges).toString()
   }
 
-  if (item.count === 1) {
+  if (item.count == null || item.count <= 1) {
     return ''
   }
 
