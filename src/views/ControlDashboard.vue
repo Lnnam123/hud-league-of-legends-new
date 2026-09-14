@@ -1,9 +1,9 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
-import { useHudSettings, type HudSettings } from '@/composables/useHudSettings'
+import { computed } from 'vue'
+import { useHudSettings, type HudSettings, type FeedEventType } from '@/composables/useHudSettings'
 import { useIngameSelector, useIsInGame } from '@/composables/useIngame'
 
-const { settings, toggleSkinDisplay, setSkinDisplay, setSkinTeam, toggleSetting } = useHudSettings()
+const { settings, toggleSkinDisplay, setSkinDisplay, setSkinTeam, toggleSetting, triggerTestKill, triggerTestFeed } = useHudSettings()
 
 const scoreboard = useIngameSelector((s) => s.gameData.scoreboard)
 const isInGame = useIsInGame()
@@ -13,898 +13,612 @@ const redTeamName = computed(() => scoreboard.value?.teams[1]?.teamName || score
 const blueScore = computed(() => scoreboard.value?.teams[0]?.seriesScore?.wins ?? 0)
 const redScore = computed(() => scoreboard.value?.teams[1]?.seriesScore?.wins ?? 0)
 
-const searchQuery = ref('')
-const activeTab = ref('in-game')
-
-interface ControlCard {
+interface DeckButton {
   id: string
   label: string
+  subLabel: string
   key?: keyof HudSettings
   isSkin?: boolean
+  isRunes?: boolean
+  isKillFeed?: boolean
 }
 
-// Grid cards matching the League Broadcast In Game panel
-const controlCards: ControlCard[] = [
-  { id: 'teamfightNoDamage', label: 'Teamfight No Damage', key: 'compactTeamfight' },
-  { id: 'fullGoldGraph', label: 'Full Gold Graph', key: 'goldGraph' },
-  { id: 'runes', label: 'Runes' },
-  { id: 'damageGraph', label: 'Damage Graph' },
-  { id: 'globalScoreboard', label: 'Global Scoreboard' },
-  { id: 'patchNumber', label: 'Patch Number' },
-  { id: 'championTabs', label: 'Champion Tabs' },
-  { id: 'inhibitorTimer', label: 'Inhibitor Timer' },
-  { id: 'teamfightDamage', label: 'Teamfight Damage', key: 'compactTeamfight' },
-  { id: 'bottomScoreboard', label: 'Bottom Scoreboard', key: 'scoreboardBottom' },
-  { id: 'baronTimer', label: 'Baron Timer', key: 'baronTimer' },
-  { id: 'dragonTimer', label: 'Dragon Timer', key: 'dragonTimer' },
-  { id: 'sideinfoExp', label: 'Sideinfo Exp' },
-  { id: 'sideinfoGold', label: 'Sideinfo Gold' },
-  { id: 'sideinfoDamage', label: 'Sideinfo Damage' },
-  { id: 'sideinfoCreepscore', label: 'Sideinfo Creepscore' },
-  // Highlighted:
-  { id: 'sideinfoSkin', label: 'Sideinfo Skin', isSkin: true },
-  { id: 'twitchPrediction', label: 'Twitch Prediction' },
-  { id: 'twitchPoll', label: 'Twitch Poll' },
-  { id: 'twitchChatVote', label: 'Twitch Chat Vote' },
-  { id: 'sideinfoRoleQuest', label: 'Sideinfo Role Quest' },
-  { id: 'sideinfoTowerPlates', label: 'Sideinfo Tower Plates' },
-  { id: 'damageSplit', label: 'Damage Split' },
-  { id: 'goldEfficiency', label: 'Gold Efficiency' },
+// Only the real functional HUD features
+const functionalButtons: DeckButton[] = [
+  {
+    id: 'compactTeamfight',
+    label: 'Teamfight Damage',
+    subLabel: 'Bảng Giao Tranh',
+    key: 'compactTeamfight',
+  },
+  {
+    id: 'scoreboardBottom',
+    label: 'Bottom Scoreboard',
+    subLabel: 'Bảng Người Chơi',
+    key: 'scoreboardBottom',
+  },
+  {
+    id: 'teamRunes',
+    label: 'Team Runes',
+    subLabel: 'Bảng Ngọc Bổ Trợ',
+    isRunes: true,
+  },
+  {
+    id: 'sideinfoSkin',
+    label: 'Sideinfo Skin',
+    subLabel: 'Skin Display',
+    isSkin: true,
+  },
+  {
+    id: 'fullGoldGraph',
+    label: 'Full Gold Graph',
+    subLabel: 'Biểu Đồ Vàng',
+    key: 'goldGraph',
+  },
+  {
+    id: 'baronTimer',
+    label: 'Baron Timer',
+    subLabel: 'Đồng Hồ Baron',
+    key: 'baronTimer',
+  },
+  {
+    id: 'dragonTimer',
+    label: 'Dragon Timer',
+    subLabel: 'Đồng Hồ Rồng',
+    key: 'dragonTimer',
+  },
+  {
+    id: 'smiteReaction',
+    label: 'Smite Reaction',
+    subLabel: 'Hiệu Ứng Trừng Phạt',
+    key: 'smiteReaction',
+  },
+  {
+    id: 'killFeed',
+    label: 'Kill Feed',
+    subLabel: 'Thông Báo Hạ Gục',
+    key: 'killFeed',
+    isKillFeed: true,
+  },
 ]
 
-const filteredCards = computed(() => {
-  if (!searchQuery.value.trim()) return controlCards
-  const q = searchQuery.value.toLowerCase()
-  return controlCards.filter((c) => c.label.toLowerCase().includes(q))
-})
+function isBtnActive(btn: DeckButton): boolean {
+  if (btn.isSkin) return settings.value.skinDisplayEnabled
+  if (btn.isRunes) return settings.value.teamRunesEnabled
+  if (btn.key) return !!settings.value[btn.key]
+  return false
+}
+
+function handleBtnClick(btn: DeckButton) {
+  if (btn.isSkin) {
+    toggleSkinDisplay()
+  } else if (btn.isRunes) {
+    toggleTeamRunes()
+  } else if (btn.key) {
+    toggleSetting(btn.key)
+  }
+}
+
+function toggleTeamRunes() {
+  settings.value.teamRunesEnabled = !settings.value.teamRunesEnabled
+}
+
+function setRunesTeam(team: 'order' | 'chaos') {
+  settings.value.teamRunesTeam = team
+  settings.value.teamRunesEnabled = true
+}
+
+let lastFeedTestTeam: 'order' | 'chaos' = 'chaos'
+
+function triggerFeedTest(type: FeedEventType, team?: 'order' | 'chaos') {
+  settings.value.killFeed = true
+  const chosenTeam = team || (lastFeedTestTeam === 'order' ? 'chaos' : 'order')
+  lastFeedTestTeam = chosenTeam
+  triggerTestFeed(type, chosenTeam)
+}
+
+function triggerKillTest(team: 'order' | 'chaos') {
+  triggerFeedTest('kill', team)
+}
 
 function deactivateAll() {
   setSkinDisplay(false)
+  settings.value.teamRunesEnabled = false
   settings.value.scoreboardBottom = false
   settings.value.baronTimer = false
   settings.value.dragonTimer = false
   settings.value.goldGraph = false
   settings.value.compactTeamfight = false
+  settings.value.smiteReaction = false
+  settings.value.killFeed = false
 }
 
 function activateDefaults() {
   setSkinDisplay(true)
+  settings.value.teamRunesEnabled = false
   settings.value.scoreboardBottom = true
   settings.value.baronTimer = true
   settings.value.dragonTimer = true
   settings.value.goldGraph = true
+  settings.value.compactTeamfight = false
+  settings.value.smiteReaction = true
+  settings.value.killFeed = true
 }
 
 function openOverlay() {
   window.open('/', '_blank')
 }
-
-function isCardActive(card: ControlCard): boolean {
-  if (card.isSkin) return settings.value.skinDisplayEnabled
-  if (card.key) return !!settings.value[card.key]
-  return false
-}
-
-function handleCardClick(card: ControlCard) {
-  if (card.isSkin) {
-    toggleSkinDisplay()
-  } else if (card.key) {
-    toggleSetting(card.key)
-  }
-}
 </script>
 
 <template>
-  <div class="control-container">
-    <!-- Top Global Header -->
-    <header class="top-nav">
-      <div class="nav-left">
-        <div class="brand">
-          <div class="brand-icon">
-            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2">
-              <circle cx="12" cy="12" r="10" />
-              <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
-            </svg>
-          </div>
-          <span class="brand-title">HUD Controller</span>
-          <span class="brand-badge">Pro Unlocked</span>
+  <div class="deck-page">
+    <!-- Clean Minimalist Header -->
+    <header class="deck-header">
+      <div class="header-left">
+        <span class="app-tag">HUD CONTROL</span>
+        <div class="match-pill">
+          <span class="status-dot" :class="isInGame ? 'live' : 'standby'"></span>
+          <span class="status-text">{{ isInGame ? 'IN GAME' : 'STANDBY' }}</span>
+          <span class="match-score">
+            <strong>{{ blueTeamName }}</strong> {{ blueScore }} : {{ redScore }} <strong>{{ redTeamName }}</strong>
+          </span>
         </div>
       </div>
 
-      <!-- Match summary badge -->
-      <div class="match-info">
-        <span class="status-pill" :class="isInGame ? 'live' : 'standby'">
-          {{ isInGame ? 'IN GAME' : 'STANDBY' }}
-        </span>
-        <span class="match-teams">
-          <strong>{{ blueTeamName }}</strong> {{ blueScore }} : {{ redScore }} <strong>{{ redTeamName }}</strong>
-        </span>
-        <span class="match-meta">Game 1 / Best of 5 · Fearless draft</span>
-      </div>
-
-      <div class="nav-right">
-        <button class="action-btn link-btn" @click="openOverlay" title="Mở trang HUD để phát sóng">
-          <span>📺 Mở HUD Overlay</span>
+      <div class="header-right">
+        <button class="action-pill default" @click="activateDefaults">
+          Default All
         </button>
-        <div class="ready-badge">
-          <span class="dot"></span>
-          Ready
-        </div>
+        <button class="action-pill danger" @click="deactivateAll">
+          Deactivate All
+        </button>
+        <button class="action-pill primary" @click="openOverlay">
+          Mở Overlay ↗
+        </button>
       </div>
     </header>
 
-    <!-- Main Workspace Layout -->
-    <div class="workspace">
-      <!-- Left Sidebar (mimics League Broadcast) -->
-      <aside class="sidebar">
-        <div class="search-box">
-          <svg class="search-icon" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
-            <circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" />
-          </svg>
-          <input v-model="searchQuery" type="text" placeholder="Search..." />
-        </div>
+    <!-- Main Buttons Grid -->
+    <main class="deck-main">
+      <div class="deck-grid">
+        <div
+          v-for="btn in functionalButtons"
+          :key="btn.id"
+          class="deck-card"
+          :class="{ active: isBtnActive(btn) }"
+          @click="handleBtnClick(btn)"
+        >
+          <div class="card-text-wrap">
+            <span class="card-label">{{ btn.label }}</span>
+            <span class="card-sub">{{ btn.subLabel }}</span>
+          </div>
 
-        <div class="sidebar-section">
-          <div class="section-title">SETUP</div>
-          <div class="nav-item">
-            <span class="item-icon">👥</span> Teams and Players
-          </div>
-          <div class="nav-item">
-            <span class="item-icon">🏆</span> Tournaments
-          </div>
-          <div class="nav-item">
-            <span class="item-icon">🎨</span> Style Editor
-          </div>
-        </div>
-
-        <div class="sidebar-section">
-          <div class="section-title">BROADCAST</div>
-          <div class="nav-item">
-            <span class="item-icon">📋</span> Current Match
-          </div>
-          <div class="nav-item active">
-            <span class="item-icon">🎮</span> In Game
-          </div>
-          <div class="nav-item">
-            <span class="item-icon">📊</span> Post Game
-          </div>
-        </div>
-
-        <div class="sidebar-section">
-          <div class="section-title">TOOLS</div>
-          <div class="nav-item">
-            <span class="item-icon">🎥</span> Cinematics
-          </div>
-          <div class="nav-item">
-            <span class="item-icon">👾</span> Twitch
-          </div>
-        </div>
-      </aside>
-
-      <!-- Main Content Area -->
-      <main class="content-area">
-        <!-- Subheader with Tabs & Actions -->
-        <div class="sub-header">
-          <div class="tabs">
+          <!-- Quick team switcher if it's the Skin Display card -->
+          <div v-if="btn.isSkin" class="team-subpills" @click.stop>
             <button
-              class="tab-btn"
-              :class="{ active: activeTab === 'match' }"
-              @click="activeTab = 'match'"
+              class="team-pill"
+              :class="{ active: settings.skinDisplayTeam === 'both' }"
+              @click="setSkinTeam('both')"
             >
-              MATCH SETUP
+              All
             </button>
             <button
-              class="tab-btn"
-              :class="{ active: activeTab === 'in-game' }"
-              @click="activeTab = 'in-game'"
+              class="team-pill blue"
+              :class="{ active: settings.skinDisplayTeam === 'order' }"
+              @click="setSkinTeam('order')"
             >
-              IN GAME
+              Xanh
             </button>
             <button
-              class="tab-btn"
-              :class="{ active: activeTab === 'post' }"
-              @click="activeTab = 'post'"
+              class="team-pill red"
+              :class="{ active: settings.skinDisplayTeam === 'chaos' }"
+              @click="setSkinTeam('chaos')"
             >
-              POST GAME
+              Đỏ
             </button>
           </div>
 
-          <div class="actions">
-            <button class="btn-secondary" @click="activateDefaults">
-              Default All
-            </button>
-            <button class="btn-danger" @click="deactivateAll">
-              Deactivate All
-            </button>
-          </div>
-        </div>
-
-        <!-- Spotlight Skin Display Panel -->
-        <div class="skin-spotlight-card" :class="{ 'is-active': settings.skinDisplayEnabled }">
-          <div class="spotlight-left">
-            <div class="spotlight-icon">
-              <span v-if="settings.skinDisplayEnabled">✨</span>
-              <span v-else>🔒</span>
-            </div>
-            <div class="spotlight-text">
-              <div class="spotlight-title">
-                Sideinfo Skin (Skin Display)
-                <span class="live-pill" :class="settings.skinDisplayEnabled ? 'on' : 'off'">
-                  {{ settings.skinDisplayEnabled ? 'ĐANG BẬT' : 'ĐANG TẮT' }}
-                </span>
-              </div>
-              <p class="spotlight-desc">
-                Tự động kết nối trực tiếp với Liên Minh Huyền Thoại & CommunityDragon để hiển thị bảng Splash Art trang phục hai bên màn hình.
-              </p>
-            </div>
-          </div>
-
-          <div class="spotlight-controls">
-            <div class="team-filter">
-              <span class="filter-label">Hiển thị cho:</span>
-              <div class="filter-buttons">
-                <button
-                  class="filter-btn"
-                  :class="{ active: settings.skinDisplayTeam === 'both' }"
-                  @click="setSkinTeam('both')"
-                >
-                  Cả 2 Đội
-                </button>
-                <button
-                  class="filter-btn blue"
-                  :class="{ active: settings.skinDisplayTeam === 'order' }"
-                  @click="setSkinTeam('order')"
-                >
-                  Đội Xanh
-                </button>
-                <button
-                  class="filter-btn red"
-                  :class="{ active: settings.skinDisplayTeam === 'chaos' }"
-                  @click="setSkinTeam('chaos')"
-                >
-                  Đội Đỏ
-                </button>
-              </div>
-            </div>
-
+          <!-- Quick team switcher if it's the Team Runes card -->
+          <div v-if="btn.isRunes" class="team-subpills" @click.stop>
             <button
-              class="toggle-main-btn"
-              :class="settings.skinDisplayEnabled ? 'btn-active' : 'btn-inactive'"
-              @click="toggleSkinDisplay"
+              class="team-pill blue"
+              :class="{ active: settings.teamRunesTeam === 'order' }"
+              @click="setRunesTeam('order')"
             >
-              {{ settings.skinDisplayEnabled ? '✓ ĐANG BẬT (CLICK ĐỂ TẮT)' : '⚡ BẬT SKIN DISPLAY NGAY' }}
+              Xanh
             </button>
-          </div>
-        </div>
-
-        <!-- Spotlight Compact Teamfight Panel -->
-        <div class="skin-spotlight-card" :class="{ 'is-active': settings.compactTeamfight }">
-          <div class="spotlight-left">
-            <div class="spotlight-icon">
-              <span>⚔️</span>
-            </div>
-            <div class="spotlight-text">
-              <div class="spotlight-title">
-                Teamfight Damage (Bảng Chiêu Cuối & 10 Tướng)
-                <span class="live-pill" :class="settings.compactTeamfight ? 'on' : 'off'">
-                  {{ settings.compactTeamfight ? 'ĐANG BẬT' : 'ĐANG TẮT' }}
-                </span>
-              </div>
-              <p class="spotlight-desc">
-                Hiển thị bảng chiêu cuối tròn (R), phép bổ trợ (D/F), cấp độ, thanh máu & năng lượng của cả 10 tướng ở cạnh dưới màn hình.
-              </p>
-            </div>
-          </div>
-
-          <div class="spotlight-controls">
             <button
-              class="toggle-main-btn"
-              :class="settings.compactTeamfight ? 'btn-active' : 'btn-inactive'"
-              @click="toggleSetting('compactTeamfight')"
+              class="team-pill red"
+              :class="{ active: settings.teamRunesTeam === 'chaos' }"
+              @click="setRunesTeam('chaos')"
             >
-              {{ settings.compactTeamfight ? '✓ ĐANG BẬT (CLICK ĐỂ TẮT)' : '⚡ BẬT BẢNG 10 TƯỚNG NGAY' }}
+              Đỏ
             </button>
           </div>
-        </div>
 
-        <!-- Feature Toggle Grid (Identical to Screenshot) -->
-        <div class="grid-section">
-          <div class="grid-header">
-            <span>BẢNG ĐIỀU KHIỂN TÍNH NĂNG TRONG TRẬN</span>
-            <span class="hint">Click vào thẻ bất kỳ để BẬT / TẮT ngay trên màn hình OBS</span>
-          </div>
-
-          <div class="cards-grid">
-            <div
-              v-for="card in filteredCards"
-              :key="card.id"
-              class="hud-card"
-              :class="{
-                active: isCardActive(card),
-                'skin-card': card.isSkin
-              }"
-              @click="handleCardClick(card)"
-            >
-              <div class="card-content">
-                <div class="card-title">{{ card.label }}</div>
-                <div class="card-icon">
-                  <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
-                    <line x1="4" y1="21" x2="4" y2="14" />
-                    <line x1="4" y1="10" x2="4" y2="3" />
-                    <line x1="12" y1="21" x2="12" y2="12" />
-                    <line x1="12" y1="8" x2="12" y2="3" />
-                    <line x1="20" y1="21" x2="20" y2="16" />
-                    <line x1="20" y1="12" x2="20" y2="3" />
-                    <line x1="1" y1="14" x2="7" y2="14" />
-                    <line x1="9" y1="8" x2="15" y2="8" />
-                    <line x1="17" y1="16" x2="23" y2="16" />
-                  </svg>
-                </div>
-              </div>
-              <div class="card-status-bar">
-                <span class="status-indicator"></span>
-              </div>
+          <!-- Quick test trigger if it's the Kill Feed card -->
+          <div v-if="btn.isKillFeed" class="feed-subpills" @click.stop>
+            <div class="feed-row">
+              <button
+                class="feed-btn blue"
+                title="Hạ gục (Đội Xanh)"
+                @click="triggerKillTest('order')"
+              >
+                ⚔ Xanh
+              </button>
+              <button
+                class="feed-btn red"
+                title="Hạ gục (Đội Đỏ)"
+                @click="triggerKillTest('chaos')"
+              >
+                ⚔ Đỏ
+              </button>
+            </div>
+            <div class="feed-row objectives">
+              <button class="feed-btn obj" title="Ăn Rồng" @click="triggerFeedTest('dragon')">🐉 Rồng</button>
+              <button class="feed-btn obj" title="Ăn Sứ Giả Khe Nứt" @click="triggerFeedTest('herald')">👁 Sứ Giả</button>
+              <button class="feed-btn obj" title="Ăn Baron" @click="triggerFeedTest('baron')">👾 Baron</button>
+              <button class="feed-btn obj" title="Hạ Trụ" @click="triggerFeedTest('tower')">🏰 Trụ</button>
             </div>
           </div>
+
+          <!-- Bottom micro icon / key indicator -->
+          <div class="card-footer">
+            <svg class="key-icon" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="8" cy="15" r="4" />
+              <line x1="10.85" y1="12.15" x2="19" y2="4" />
+              <line x1="18" y1="5" x2="20" y2="7" />
+              <line x1="15" y1="8" x2="17" y2="10" />
+            </svg>
+          </div>
         </div>
-      </main>
-    </div>
+      </div>
+    </main>
   </div>
 </template>
 
 <style scoped>
-.control-container {
+.deck-page {
   min-height: 100vh;
-  width: 100vw;
-  background-color: #0d1117;
-  color: #e6edf3;
+  background-color: #17191d;
+  color: #8c939d;
   font-family: 'Inter', system-ui, -apple-system, sans-serif;
   display: flex;
   flex-direction: column;
-  overflow: hidden;
   user-select: none;
+  box-sizing: border-box;
 }
 
-/* Top Navigation Bar */
-.top-nav {
-  height: 52px;
-  background-color: #161b22;
-  border-bottom: 1px solid #30363d;
+/* Header */
+.deck-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0 16px;
+  padding: 16px 28px;
+  background-color: #1b1d22;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
 }
 
-.brand {
+.header-left {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 16px;
 }
 
-.brand-icon {
-  color: #a371f7;
-  display: flex;
-  align-items: center;
-}
-
-.brand-title {
-  font-weight: 700;
-  font-size: 15px;
-  letter-spacing: 0.02em;
-}
-
-.brand-badge {
-  background: rgba(163, 113, 247, 0.2);
-  color: #d2a8ff;
-  font-size: 11px;
-  font-weight: 600;
-  padding: 2px 8px;
-  border-radius: 9999px;
-  border: 1px solid rgba(163, 113, 247, 0.3);
-}
-
-.match-info {
-  display: flex;
-  align-items: center;
-  gap: 12px;
+.app-tag {
   font-size: 13px;
-  background: #0d1117;
-  padding: 4px 16px;
-  border-radius: 6px;
-  border: 1px solid #21262d;
-}
-
-.status-pill {
-  font-size: 10px;
   font-weight: 800;
-  padding: 2px 6px;
-  border-radius: 4px;
+  letter-spacing: 1px;
+  color: #e2e8f0;
 }
 
-.status-pill.standby {
-  background: rgba(210, 153, 34, 0.2);
-  color: #e3b341;
-}
-
-.status-pill.live {
-  background: rgba(46, 160, 67, 0.2);
-  color: #3fb950;
-}
-
-.match-teams {
-  color: #f0f6fc;
-}
-
-.match-meta {
-  color: #8b949e;
-  font-size: 11px;
-}
-
-.nav-right {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-.action-btn {
-  padding: 6px 12px;
-  border-radius: 6px;
-  font-size: 12px;
-  font-weight: 600;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  background: #21262d;
-  color: #c9d1d9;
-  border: 1px solid #30363d;
-  transition: all 0.2s;
-}
-
-.action-btn:hover {
-  background: #30363d;
-  color: #fff;
-}
-
-.ready-badge {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  background: rgba(46, 160, 67, 0.15);
-  color: #3fb950;
-  border: 1px solid rgba(46, 160, 67, 0.3);
-  font-size: 12px;
-  font-weight: 600;
-  padding: 4px 10px;
-  border-radius: 4px;
-}
-
-.ready-badge .dot {
-  width: 6px;
-  height: 6px;
-  background: #3fb950;
-  border-radius: 50%;
-  box-shadow: 0 0 6px #3fb950;
-}
-
-/* Workspace layout */
-.workspace {
-  display: flex;
-  flex: 1;
-  height: calc(100vh - 52px);
-  overflow: hidden;
-}
-
-/* Sidebar */
-.sidebar {
-  width: 230px;
-  background: #161b22;
-  border-right: 1px solid #30363d;
-  padding: 12px 10px;
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-}
-
-.search-box {
-  position: relative;
-  display: flex;
-  align-items: center;
-}
-
-.search-icon {
-  position: absolute;
-  left: 10px;
-  color: #8b949e;
-}
-
-.search-box input {
-  width: 100%;
-  background: #0d1117;
-  border: 1px solid #30363d;
-  border-radius: 6px;
-  padding: 6px 10px 6px 30px;
-  font-size: 12px;
-  color: #c9d1d9;
-  outline: none;
-}
-
-.search-box input:focus {
-  border-color: #58a6ff;
-}
-
-.sidebar-section {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.section-title {
-  font-size: 10px;
-  font-weight: 700;
-  color: #8b949e;
-  padding: 4px 8px;
-  letter-spacing: 0.05em;
-}
-
-.nav-item {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 8px 10px;
-  font-size: 13px;
-  color: #8b949e;
-  border-radius: 6px;
-  cursor: pointer;
-  transition: all 0.15s;
-}
-
-.nav-item:hover {
-  background: #21262d;
-  color: #c9d1d9;
-}
-
-.nav-item.active {
-  background: #5c54d4;
-  color: #ffffff;
-  font-weight: 600;
-}
-
-/* Content Area */
-.content-area {
-  flex: 1;
-  background: #0d1117;
-  padding: 20px 24px;
-  overflow-y: auto;
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
-}
-
-/* Sub-header */
-.sub-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.tabs {
-  display: flex;
-  background: #161b22;
-  border-radius: 6px;
-  padding: 3px;
-  border: 1px solid #30363d;
-}
-
-.tab-btn {
-  background: transparent;
-  border: none;
-  color: #8b949e;
-  font-size: 12px;
-  font-weight: 600;
-  padding: 6px 14px;
-  border-radius: 4px;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-
-.tab-btn.active {
-  background: #5c54d4;
-  color: #ffffff;
-}
-
-.actions {
-  display: flex;
-  gap: 8px;
-}
-
-.btn-secondary {
-  background: #21262d;
-  border: 1px solid #30363d;
-  color: #c9d1d9;
-  padding: 6px 14px;
-  border-radius: 6px;
-  font-size: 12px;
-  font-weight: 600;
-  cursor: pointer;
-}
-
-.btn-danger {
-  background: rgba(248, 81, 73, 0.15);
-  border: 1px solid rgba(248, 81, 73, 0.3);
-  color: #f85149;
-  padding: 6px 14px;
-  border-radius: 6px;
-  font-size: 12px;
-  font-weight: 600;
-  cursor: pointer;
-}
-
-.btn-danger:hover {
-  background: rgba(248, 81, 73, 0.25);
-}
-
-/* Spotlight Card for Skin Display */
-.skin-spotlight-card {
-  background: #161b22;
-  border: 2px solid #30363d;
-  border-radius: 12px;
-  padding: 16px 20px;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  transition: all 0.25s;
-}
-
-.skin-spotlight-card.is-active {
-  background: linear-gradient(135deg, rgba(92, 84, 212, 0.2) 0%, rgba(22, 27, 34, 0.95) 100%);
-  border-color: #5c54d4;
-  box-shadow: 0 4px 20px rgba(92, 84, 212, 0.15);
-}
-
-.spotlight-left {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-}
-
-.spotlight-icon {
-  font-size: 28px;
-  width: 48px;
-  height: 48px;
-  border-radius: 10px;
-  background: #21262d;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.spotlight-title {
-  font-size: 16px;
-  font-weight: 700;
-  color: #ffffff;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.live-pill {
-  font-size: 10px;
-  font-weight: 700;
-  padding: 2px 8px;
-  border-radius: 9999px;
-  min-width: 76px;
-  text-align: center;
-  display: inline-block;
-}
-
-.live-pill.on {
-  background: #238636;
-  color: #fff;
-}
-
-.live-pill.off {
-  background: #484f58;
-  color: #c9d1d9;
-}
-
-.spotlight-desc {
-  font-size: 12px;
-  color: #8b949e;
-  margin-top: 4px;
-  max-width: 520px;
-}
-
-.spotlight-controls {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  flex-shrink: 0;
-}
-
-.team-filter {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: 4px;
-}
-
-.filter-label {
-  font-size: 11px;
-  color: #8b949e;
-}
-
-.filter-buttons {
-  display: flex;
-  gap: 4px;
-  background: #0d1117;
-  padding: 2px;
-  border-radius: 6px;
-  border: 1px solid #30363d;
-}
-
-.filter-btn {
-  background: transparent;
-  border: none;
-  font-size: 11px;
-  color: #8b949e;
-  padding: 4px 8px;
-  border-radius: 4px;
-  cursor: pointer;
-  font-weight: 500;
-  transition: background 0.15s, color 0.15s;
-}
-
-.filter-btn.active {
-  background: #30363d;
-  color: #ffffff;
-  font-weight: 600;
-}
-
-.filter-btn.active.blue {
-  background: #1f6feb;
-}
-
-.filter-btn.active.red {
-  background: #da3633;
-}
-
-.toggle-main-btn {
-  min-width: 260px;
-  height: 40px;
-  padding: 0 18px;
-  border-radius: 8px;
-  font-size: 13px;
-  font-weight: 700;
-  cursor: pointer;
-  border: none;
+.match-pill {
   display: inline-flex;
   align-items: center;
-  justify-content: center;
-  transition: background 0.15s, box-shadow 0.15s, filter 0.15s;
+  gap: 8px;
+  background: rgba(0, 0, 0, 0.35);
+  padding: 5px 14px;
+  border-radius: 20px;
+  font-size: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.06);
 }
 
-.toggle-main-btn.btn-active {
-  background: #238636;
-  color: #ffffff;
-  box-shadow: 0 2px 10px rgba(35, 134, 54, 0.4);
+.status-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
 }
 
-.toggle-main-btn.btn-inactive {
-  background: #5c54d4;
-  color: #ffffff;
-  box-shadow: 0 2px 10px rgba(92, 84, 212, 0.4);
+.status-dot.live {
+  background-color: #22c55e;
+  box-shadow: 0 0 8px #22c55e;
 }
 
-.toggle-main-btn:hover {
-  filter: brightness(1.1);
+.status-dot.standby {
+  background-color: #64748b;
 }
 
-/* Grid Section */
-.grid-section {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.grid-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  font-size: 11px;
+.status-text {
   font-weight: 700;
-  letter-spacing: 0.05em;
-  color: #8b949e;
-}
-
-.grid-header .hint {
-  font-weight: 400;
   font-size: 11px;
-  color: #6e7681;
+  color: #cbd5e1;
 }
 
-.cards-grid {
+.match-score {
+  color: #94a3b8;
+  margin-left: 4px;
+}
+
+.match-score strong {
+  color: #f1f5f9;
+}
+
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.action-pill {
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background-color: #22252b;
+  color: #94a3b8;
+  padding: 7px 14px;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.action-pill:hover {
+  background-color: #2c3038;
+  color: #f1f5f9;
+}
+
+.action-pill.danger {
+  color: #f87171;
+  border-color: rgba(239, 68, 68, 0.2);
+  background-color: rgba(239, 68, 68, 0.08);
+}
+
+.action-pill.danger:hover {
+  background-color: rgba(239, 68, 68, 0.18);
+}
+
+.action-pill.primary {
+  background-color: #4f46a8;
+  border-color: #6358c7;
+  color: #ffffff;
+}
+
+.action-pill.primary:hover {
+  background-color: #5c52c0;
+}
+
+/* Main Area */
+.deck-main {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 24px;
+  box-sizing: border-box;
+}
+
+.deck-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
-  gap: 12px;
+  grid-template-columns: repeat(4, 156px);
+  grid-auto-rows: minmax(124px, auto);
+  gap: 18px;
+  justify-content: center;
 }
 
-.hud-card {
-  height: 90px;
-  background: #161b22;
-  border: 2px solid #30363d;
-  border-radius: 10px;
-  padding: 12px;
+@media (max-width: 760px) {
+  .deck-grid {
+    grid-template-columns: repeat(2, 156px);
+  }
+}
+
+/* Square Deck Button (Matches Screenshot) */
+.deck-card {
+  background-color: #1f2227;
+  border: 1px solid #282b32;
+  border-radius: 18px;
+  padding: 12px 10px;
+  box-sizing: border-box;
   display: flex;
   flex-direction: column;
-  justify-content: space-between;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
   cursor: pointer;
-  transition: background 0.15s, border-color 0.15s, box-shadow 0.15s;
+  user-select: none;
   position: relative;
-  overflow: hidden;
+  transition: all 0.16s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.25);
 }
 
-.hud-card:hover {
-  background: #21262d;
-  border-color: #58a6ff;
+.deck-card:hover {
+  background-color: #262930;
+  border-color: #383c44;
+  transform: translateY(-2px);
 }
 
-.hud-card.active {
-  background: #5c54d4;
-  border-color: #7b73e8;
+.deck-card:active {
+  transform: scale(0.96);
+}
+
+/* ACTIVE STATE (The Purple Indigo in screenshot) */
+.deck-card.active {
+  background-color: #4f46a8;
+  border-color: #6a5fd6;
   color: #ffffff;
-  box-shadow: 0 4px 12px rgba(92, 84, 212, 0.25);
+  box-shadow: 0 6px 20px rgba(79, 70, 168, 0.45);
 }
 
-.hud-card.skin-card.active {
-  background: #5c54d4;
-  border-color: #ffffff;
-  box-shadow: 0 0 16px rgba(92, 84, 212, 0.5);
+.deck-card.active:hover {
+  background-color: #584fba;
+  border-color: #796ee2;
 }
 
-.card-content {
+.card-text-wrap {
   display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  width: 100%;
 }
 
-.card-title {
-  font-size: 13px;
+.card-label {
+  font-size: 13.5px;
   font-weight: 600;
   line-height: 1.25;
+  color: #8c939d;
+  transition: color 0.15s ease;
 }
 
-.hud-card:not(.active) .card-title {
-  color: #c9d1d9;
-}
-
-.hud-card.active .card-title {
+.deck-card.active .card-label {
   color: #ffffff;
+  font-weight: 700;
 }
 
-.card-icon {
-  color: rgba(255, 255, 255, 0.4);
+.card-sub {
+  font-size: 11px;
+  color: #5d636e;
+  transition: color 0.15s ease;
 }
 
-.hud-card.active .card-icon {
-  color: #ffffff;
+.deck-card.active .card-sub {
+  color: #c7c3f5;
 }
 
-.card-status-bar {
+.card-footer {
+  margin-top: 6px;
+  opacity: 0.4;
   display: flex;
   align-items: center;
+  justify-content: center;
 }
 
-.status-indicator {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: #484f58;
+.deck-card.active .card-footer {
+  opacity: 0.8;
+  color: #d1cff7;
 }
 
-.hud-card.active .status-indicator {
-  background: #3fb950;
-  box-shadow: 0 0 6px #3fb950;
+/* Micro team selector for Skin Display */
+.team-subpills {
+  display: flex;
+  gap: 3px;
+  margin-top: 6px;
+  background: rgba(0, 0, 0, 0.35);
+  padding: 2px 4px;
+  border-radius: 6px;
+}
+
+.team-pill {
+  background: transparent;
+  border: none;
+  font-size: 9.5px;
+  font-weight: 700;
+  color: #8c939d;
+  padding: 2px 6px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.12s ease;
+}
+
+.deck-card.active .team-pill {
+  color: #c7c3f5;
+}
+
+.team-pill:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: #ffffff;
+}
+
+.team-pill.active {
+  background: #ffffff;
+  color: #1e1b4b;
+}
+
+.deck-card.active .team-pill.active {
+  background: #ffffff;
+  color: #4338ca;
+}
+
+.team-pill.blue.active {
+  background: #3b82f6;
+  color: #ffffff;
+}
+
+.team-pill.red.active {
+  background: #ef4444;
+  color: #ffffff;
+}
+
+/* Feed Objective Quick Test Controls */
+.feed-subpills {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 6px;
+  width: 100%;
+  padding: 0 2px;
+  box-sizing: border-box;
+}
+
+.feed-row {
+  display: flex;
+  gap: 3px;
+  justify-content: center;
+}
+
+.feed-row.objectives {
+  flex-wrap: wrap;
+}
+
+.feed-btn {
+  background: rgba(0, 0, 0, 0.4);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 4px;
+  font-size: 9px;
+  font-weight: 600;
+  color: #c7c3f5;
+  padding: 2px 5px;
+  cursor: pointer;
+  transition: all 0.12s ease;
+  white-space: nowrap;
+}
+
+.feed-btn:hover {
+  background: rgba(255, 255, 255, 0.15);
+  color: #ffffff;
+  border-color: rgba(255, 255, 255, 0.3);
+  transform: scale(1.03);
+}
+
+.feed-btn.blue {
+  color: #60a5fa;
+  border-color: rgba(59, 130, 246, 0.35);
+}
+.feed-btn.blue:hover {
+  background: rgba(59, 130, 246, 0.25);
+  color: #ffffff;
+}
+
+.feed-btn.red {
+  color: #f87171;
+  border-color: rgba(239, 68, 68, 0.35);
+}
+.feed-btn.red:hover {
+  background: rgba(239, 68, 68, 0.25);
+  color: #ffffff;
+}
+
+.feed-btn.obj {
+  font-size: 8px;
+  padding: 1.5px 3.5px;
 }
 </style>

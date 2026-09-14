@@ -11,8 +11,8 @@ import PlayerScoreboard from './components/PlayerScoreboard/PlayerScoreboard.vue
 import ObjectiveTimer from './components/ObjectiveTimer/ObjectiveTimer.vue'
 import { useIngameSelector, useIsInGame, useIngameConnected } from './composables/useIngame'
 import MinimapFrame from './components/Minimap/MinimapFrame.vue'
-// import LFrame from "./components/LFrame/LFrame.vue";
 import SkinDisplay from './components/SidePanel/SkinDisplay.vue'
+import TeamRunes from './components/SidePanel/TeamRunes.vue'
 import { Team } from '@bluebottle_gg/league-broadcast-client'
 import CompactTeamfight from './components/Teamfight/CompactTeamfight.vue'
 import SmiteReaction from './components/SmiteReaction/SmiteReaction.vue'
@@ -207,8 +207,9 @@ const redElder = computed(() => redElderState.value)
     <!-- Basic Tier only features -->
     <SkinDisplay class="overlay-skindisplay" :team="Team.Order" />
     <SkinDisplay class="overlay-skindisplay" :team="Team.Chaos" mirror />
+    <TeamRunes />
     <SmiteReaction class="overlay-smitereaction" />
-    <KillFeed class="overlay-killfeed" />
+    <KillFeed v-if="settings.killFeed" class="overlay-killfeed" />
     <PlayerCameras class="overlay-playercameras" />
     <GoldGraph class="overlay-bottom" />
     <CompactTeamfight :show="isTeamfightActive" class="overlay-teamfight" />

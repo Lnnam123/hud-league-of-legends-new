@@ -9,6 +9,8 @@ import svgLoader from "vite-svg-loader";
 let globalHudSettings = {
   skinDisplayEnabled: true,
   skinDisplayTeam: 'both',
+  teamRunesEnabled: false,
+  teamRunesTeam: 'both',
   scoreboardBottom: true,
   baronTimer: true,
   dragonTimer: true,
@@ -39,6 +41,16 @@ function hudControlPlugin() {
           req.on('end', () => {
             try {
               const data = JSON.parse(body);
+              if (req.url?.includes('test-kill') || req.url?.includes('test-feed')) {
+                server.ws.send({
+                  type: 'custom',
+                  event: 'hud-control:test-feed',
+                  data,
+                });
+                res.writeHead(200, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ ok: true }));
+                return;
+              }
               globalHudSettings = { ...globalHudSettings, ...data };
               server.ws.send({
                 type: 'custom',

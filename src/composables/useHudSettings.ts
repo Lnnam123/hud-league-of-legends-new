@@ -4,6 +4,8 @@ export interface HudSettings {
   skinDisplayEnabled: boolean;
   skinDisplayTeam: 'both' | 'order' | 'chaos';
   skinDisplayDuration: number;
+  teamRunesEnabled: boolean;
+  teamRunesTeam: 'both' | 'order' | 'chaos';
   scoreboardBottom: boolean;
   baronTimer: boolean;
   dragonTimer: boolean;
@@ -13,6 +15,8 @@ export interface HudSettings {
   killFeed: boolean;
 }
 
+export type FeedEventType = 'kill' | 'dragon' | 'baron' | 'herald' | 'tower';
+
 const STORAGE_KEY = 'lol_hud_control_settings';
 const CHANNEL_NAME = 'lol_hud_sync_channel';
 
@@ -20,6 +24,8 @@ const defaultSettings: HudSettings = {
   skinDisplayEnabled: true,
   skinDisplayTeam: 'both',
   skinDisplayDuration: 3500,
+  teamRunesEnabled: false,
+  teamRunesTeam: 'order',
   scoreboardBottom: true,
   baronTimer: true,
   dragonTimer: true,
@@ -148,11 +154,44 @@ export function useHudSettings() {
     }
   }
 
+  function triggerTestFeed(type: FeedEventType = 'kill', team: 'order' | 'chaos' = 'order') {
+    const payload = { type, team, timestamp: Date.now() };
+
+    // 1. BroadcastChannel
+    if (channel) {
+      channel.postMessage({
+        type: 'TRIGGER_TEST_FEED',
+        senderId: CLIENT_ID,
+        payload,
+      });
+    }
+
+    // 2. Custom DOM event (in same tab)
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('hud:test-feed', { detail: payload }));
+    }
+
+    // 3. Server relay (for OBS Browser Source)
+    try {
+      fetch('/api/hud-control/test-feed', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      }).catch(() => {});
+    } catch {}
+  }
+
+  function triggerTestKill(team: 'order' | 'chaos' = 'order') {
+    triggerTestFeed('kill', team);
+  }
+
   return {
     settings: hudSettings,
     toggleSkinDisplay,
     setSkinDisplay,
     setSkinTeam,
     toggleSetting,
+    triggerTestKill,
+    triggerTestFeed,
   };
 }
