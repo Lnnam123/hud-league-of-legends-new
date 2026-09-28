@@ -1,4 +1,5 @@
 import { fileURLToPath, URL } from "node:url";
+import os from "node:os";
 
 import { defineConfig } from "vite";
 import vue from "@vitejs/plugin-vue";
@@ -6,16 +7,29 @@ import tailwindcss from "@tailwindcss/vite";
 import webfontDownload from "vite-plugin-webfont-dl";
 import svgLoader from "vite-svg-loader";
 
+function getLocalIp(): string {
+  const nets = os.networkInterfaces();
+  for (const name of Object.keys(nets)) {
+    for (const net of nets[name] || []) {
+      if (net.family === 'IPv4' && !net.internal) {
+        return net.address;
+      }
+    }
+  }
+  return 'localhost';
+}
+
 let globalHudSettings = {
-  skinDisplayEnabled: true,
+  skinDisplayEnabled: false,
   skinDisplayTeam: 'both',
   teamRunesEnabled: false,
   teamRunesTeam: 'both',
   scoreboardBottom: true,
+  scoreboardShowChampionNames: false,
   baronTimer: true,
   dragonTimer: true,
   goldGraph: true,
-  compactTeamfight: true,
+  compactTeamfight: false,
   smiteReaction: true,
   killFeed: true,
 };
@@ -24,6 +38,19 @@ function hudControlPlugin() {
   return {
     name: 'vite-plugin-hud-control',
     configureServer(server: any) {
+      server.middlewares.use('/api/server-info', (req: any, res: any) => {
+        res.setHeader('Access-Control-Allow-Origin', '*');
+        res.setHeader('Content-Type', 'application/json');
+        const ip = getLocalIp();
+        const port = server.config?.server?.port || 5173;
+        res.end(JSON.stringify({
+          ip,
+          port,
+          controlUrl: `http://${ip}:${port}/control`,
+          overlayUrl: `http://${ip}:${port}/`,
+        }));
+      });
+
       server.middlewares.use('/api/hud-control', (req: any, res: any) => {
         res.setHeader('Access-Control-Allow-Origin', '*');
         res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
@@ -83,6 +110,7 @@ export default defineConfig({
     },
   },
   server: {
+    host: true,
     proxy: {
       '/riot-api': {
         target: 'https://127.0.0.1:2999',

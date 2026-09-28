@@ -7,6 +7,7 @@ export interface HudSettings {
   teamRunesEnabled: boolean;
   teamRunesTeam: 'both' | 'order' | 'chaos';
   scoreboardBottom: boolean;
+  scoreboardShowChampionNames: boolean;
   baronTimer: boolean;
   dragonTimer: boolean;
   goldGraph: boolean;
@@ -17,20 +18,21 @@ export interface HudSettings {
 
 export type FeedEventType = 'kill' | 'dragon' | 'baron' | 'herald' | 'tower';
 
-const STORAGE_KEY = 'lol_hud_control_settings';
+const STORAGE_KEY = 'lol_hud_control_settings_v2';
 const CHANNEL_NAME = 'lol_hud_sync_channel';
 
 const defaultSettings: HudSettings = {
-  skinDisplayEnabled: true,
+  skinDisplayEnabled: false,
   skinDisplayTeam: 'both',
   skinDisplayDuration: 3500,
   teamRunesEnabled: false,
   teamRunesTeam: 'order',
   scoreboardBottom: true,
+  scoreboardShowChampionNames: false,
   baronTimer: true,
   dragonTimer: true,
   goldGraph: true,
-  compactTeamfight: true,
+  compactTeamfight: false,
   smiteReaction: true,
   killFeed: true,
 };

@@ -420,38 +420,7 @@ const redEntries = computed(() => {
 })
 
 const STAGGER_STEP = 0.08
-const BASE_DELAY = 0.2
-
-function onBeforeEnter(el: Element) {
-  const htmlEl = el as HTMLElement
-  htmlEl.style.opacity = '0'
-  htmlEl.style.transform = 'translateY(100%)'
-}
-
-function makeEnterHandler(
-  getDelay: (index: number, total: number) => number,
-  getTotal: () => number,
-) {
-  return (el: Element) => {
-    const htmlEl = el as HTMLElement
-    const index = parseInt((htmlEl as HTMLElement).dataset.index ?? '0')
-    const delay = BASE_DELAY + getDelay(index, getTotal())
-    htmlEl.style.transition = `opacity 0.3s ease ${delay}s, transform 0.3s ease ${delay}s`
-    void htmlEl.offsetHeight
-    htmlEl.style.opacity = '1'
-    htmlEl.style.transform = 'translateY(0)'
-  }
-}
-
-const onBlueEnter = makeEnterHandler(
-  (index, total) => (total - 1 - index) * STAGGER_STEP,
-  () => blueEntries.value.length,
-)
-
-const onRedEnter = makeEnterHandler(
-  (index) => index * STAGGER_STEP,
-  () => redEntries.value.length,
-)
+const BASE_DELAY = 0.25
 
 const levelUpQueue = useNotificationQueue(2000)
 const itemBuyQueue = useNotificationQueue(4000)
@@ -548,24 +517,23 @@ onUnmounted(() => {
   <Transition name="slide-down">
     <div v-if="isVisible" class="teamfight-container">
       <div class="team-container order">
-        <TransitionGroup appear @before-enter="onBeforeEnter" @enter="onBlueEnter">
-          <TeamfightPlayerEntry
-            class="team-entry"
-            v-for="(entry, index) in blueEntries"
-            :key="index"
-            :data="entry"
-            mirror
-            :data-index="index"
-            :level-up-level="levelUpQueue.getActive('Order', index)?.level"
-            :level-up-visible="levelUpQueue.isVisible('Order', index)"
-            :level-up-exiting="levelUpQueue.isExiting('Order', index)"
-            :item-buy-icon="itemBuyQueue.getActive('Order', index)?.itemIcon"
-            :item-buy-visible="itemBuyQueue.isVisible('Order', index)"
-            :item-buy-exiting="itemBuyQueue.isExiting('Order', index)"
-            :has-baron="getPlayerBuffs(entry, 'Order', index).hasBaron"
-            :has-elder="getPlayerBuffs(entry, 'Order', index).hasElder"
-          />
-        </TransitionGroup>
+        <TeamfightPlayerEntry
+          class="team-entry"
+          v-for="(entry, index) in blueEntries"
+          :key="entry.name || index"
+          :data="entry"
+          mirror
+          :data-index="index"
+          :style="{ '--entry-delay': `${BASE_DELAY + (blueEntries.length - 1 - index) * STAGGER_STEP}s` }"
+          :level-up-level="levelUpQueue.getActive('Order', index)?.level"
+          :level-up-visible="levelUpQueue.isVisible('Order', index)"
+          :level-up-exiting="levelUpQueue.isExiting('Order', index)"
+          :item-buy-icon="itemBuyQueue.getActive('Order', index)?.itemIcon"
+          :item-buy-visible="itemBuyQueue.isVisible('Order', index)"
+          :item-buy-exiting="itemBuyQueue.isExiting('Order', index)"
+          :has-baron="getPlayerBuffs(entry, 'Order', index).hasBaron"
+          :has-elder="getPlayerBuffs(entry, 'Order', index).hasElder"
+        />
       </div>
 
       <!-- Center Divider with Scoreboard Logo and Top/Bottom White Lines -->
@@ -586,23 +554,22 @@ onUnmounted(() => {
       </div>
 
       <div class="team-container chaos">
-        <TransitionGroup appear @before-enter="onBeforeEnter" @enter="onRedEnter">
-          <TeamfightPlayerEntry
-            class="team-entry"
-            v-for="(entry, index) in redEntries"
-            :key="index"
-            :data="entry"
-            :data-index="index"
-            :level-up-level="levelUpQueue.getActive('Chaos', index)?.level"
-            :level-up-visible="levelUpQueue.isVisible('Chaos', index)"
-            :level-up-exiting="levelUpQueue.isExiting('Chaos', index)"
-            :item-buy-icon="itemBuyQueue.getActive('Chaos', index)?.itemIcon"
-            :item-buy-visible="itemBuyQueue.isVisible('Chaos', index)"
-            :item-buy-exiting="itemBuyQueue.isExiting('Chaos', index)"
-            :has-baron="getPlayerBuffs(entry, 'Chaos', index).hasBaron"
-            :has-elder="getPlayerBuffs(entry, 'Chaos', index).hasElder"
-          />
-        </TransitionGroup>
+        <TeamfightPlayerEntry
+          class="team-entry"
+          v-for="(entry, index) in redEntries"
+          :key="entry.name || index"
+          :data="entry"
+          :data-index="index"
+          :style="{ '--entry-delay': `${BASE_DELAY + index * STAGGER_STEP}s` }"
+          :level-up-level="levelUpQueue.getActive('Chaos', index)?.level"
+          :level-up-visible="levelUpQueue.isVisible('Chaos', index)"
+          :level-up-exiting="levelUpQueue.isExiting('Chaos', index)"
+          :item-buy-icon="itemBuyQueue.getActive('Chaos', index)?.itemIcon"
+          :item-buy-visible="itemBuyQueue.isVisible('Chaos', index)"
+          :item-buy-exiting="itemBuyQueue.isExiting('Chaos', index)"
+          :has-baron="getPlayerBuffs(entry, 'Chaos', index).hasBaron"
+          :has-elder="getPlayerBuffs(entry, 'Chaos', index).hasElder"
+        />
       </div>
     </div>
   </Transition>
@@ -647,12 +614,36 @@ onUnmounted(() => {
     linear-gradient(to right, transparent, var(--red-team-color)) bottom / 100% 4px no-repeat;
 }
 
+@keyframes teamfightPlayerEntry {
+  0% {
+    opacity: 0;
+    transform: translateY(100%);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
 .team-entry {
   flex: 0 0 auto;
   width: 80px;
   max-width: 80px;
   min-width: 0;
   box-sizing: border-box;
+  animation: teamfightPlayerEntry 0.35s cubic-bezier(0.16, 1, 0.3, 1) both;
+  animation-delay: var(--entry-delay, 0s);
+}
+
+@keyframes teamfightCenterFade {
+  0% {
+    opacity: 0;
+    transform: scaleY(0.7);
+  }
+  100% {
+    opacity: 1;
+    transform: scaleY(1);
+  }
 }
 
 .center-divider {
@@ -665,6 +656,8 @@ onUnmounted(() => {
   margin: 0 10px 18px 10px;
   flex-shrink: 0;
   box-sizing: border-box;
+  animation: teamfightCenterFade 0.4s cubic-bezier(0.16, 1, 0.3, 1) both;
+  animation-delay: 0.22s;
 }
 
 .divider-line {

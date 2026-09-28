@@ -98,6 +98,46 @@ function getDragonNameVi(type?: string) {
   }
 }
 
+// Objective event deduplication to ensure dragon, baron, herald, and towers only appear 1 time
+const DEDUP_WINDOW_MS = 10000
+
+const lastObjectiveTimes = {
+  dragon: 0,
+  baron: 0,
+  herald: 0,
+  tower: 0,
+}
+
+function shouldAnnounceObjective(type: 'dragon' | 'baron' | 'herald' | 'tower'): boolean {
+  const now = Date.now()
+  const windowMs = type === 'tower' ? 2500 : DEDUP_WINDOW_MS
+  if (now - lastObjectiveTimes[type] < windowMs) {
+    return false
+  }
+  lastObjectiveTimes[type] = now
+  return true
+}
+
+function resolveDragonType(objStr: string, teamId: number): string {
+  const lower = objStr.toLowerCase()
+  if (lower.includes('water')) return 'water'
+  if (lower.includes('fire')) return 'fire'
+  if (lower.includes('earth')) return 'earth'
+  if (lower.includes('air')) return 'air'
+  if (lower.includes('hextech')) return 'hextech'
+  if (lower.includes('chemtech')) return 'chemtech'
+  if (lower.includes('elder')) return 'elder'
+
+  // Look up latest dragon from scoreboard
+  const teamIdx = teamId === 1 ? 0 : 1
+  const teamObj = scoreboard.value?.teams?.[teamIdx]
+  const dragons = teamObj?.dragons || []
+  if (dragons.length) {
+    return dragons[dragons.length - 1] || 'fire'
+  }
+  return 'fire'
+}
+
 // Champion lookup helpers for objective slayers
 function findChampion(identifier?: any, teamId?: number): { name: string; squareImg: string } | undefined {
   if (!identifier && !teamId) return undefined
@@ -211,6 +251,8 @@ const unsub = client.onIngameEvents({
     const teamId = event.team || 1
 
     if (objStr.includes('dragon')) {
+      if (!shouldAnnounceObjective('dragon')) return
+      const dType = resolveDragonType(objStr, teamId)
       const killer = findChampion(event.killer, teamId) || getObjectiveKiller(teamId, 'dragon')
       addEntry({
         id: nextId++,
@@ -218,11 +260,12 @@ const unsub = client.onIngameEvents({
         ingameTeamId: teamId,
         killer,
         victim: {
-          name: 'Rồng',
-          squareImg: Fire,
+          name: getDragonNameVi(dType),
+          squareImg: getDragonIcon(dType),
         },
       })
     } else if (objStr.includes('baron')) {
+      if (!shouldAnnounceObjective('baron')) return
       const killer = findChampion(event.killer, teamId) || getObjectiveKiller(teamId, 'baron')
       addEntry({
         id: nextId++,
@@ -235,6 +278,7 @@ const unsub = client.onIngameEvents({
         },
       })
     } else if (objStr.includes('herald') || objStr.includes('rift')) {
+      if (!shouldAnnounceObjective('herald')) return
       const killer = findChampion(event.killer, teamId) || getObjectiveKiller(teamId, 'herald')
       addEntry({
         id: nextId++,
@@ -247,6 +291,7 @@ const unsub = client.onIngameEvents({
         },
       })
     } else if (objStr.includes('turret') || objStr.includes('tower')) {
+      if (!shouldAnnounceObjective('tower')) return
       const killer = findChampion(event.killer, teamId) || getObjectiveKiller(teamId, 'tower')
       addEntry({
         id: nextId++,
@@ -419,62 +464,70 @@ watch(
       // Dragon taken
       if (currentDragons[i]! > prevDragons[i]!) {
         const lastDragon = teamObj.dragons?.[teamObj.dragons.length - 1] || 'fire'
-        const killer = getObjectiveKiller(teamId, 'dragon')
-        addEntry({
-          id: nextId++,
-          type: 'dragon',
-          ingameTeamId: teamId,
-          killer,
-          victim: {
-            name: getDragonNameVi(lastDragon),
-            squareImg: getDragonIcon(lastDragon),
-          },
-        })
+        if (shouldAnnounceObjective('dragon')) {
+          const killer = getObjectiveKiller(teamId, 'dragon')
+          addEntry({
+            id: nextId++,
+            type: 'dragon',
+            ingameTeamId: teamId,
+            killer,
+            victim: {
+              name: getDragonNameVi(lastDragon),
+              squareImg: getDragonIcon(lastDragon),
+            },
+          })
+        }
       }
 
       // Baron taken
       if (currentBarons[i]! > prevBarons[i]!) {
-        const killer = getObjectiveKiller(teamId, 'baron')
-        addEntry({
-          id: nextId++,
-          type: 'baron',
-          ingameTeamId: teamId,
-          killer,
-          victim: {
-            name: 'Baron Nashor',
-            squareImg: BaronImg,
-          },
-        })
+        if (shouldAnnounceObjective('baron')) {
+          const killer = getObjectiveKiller(teamId, 'baron')
+          addEntry({
+            id: nextId++,
+            type: 'baron',
+            ingameTeamId: teamId,
+            killer,
+            victim: {
+              name: 'Baron Nashor',
+              squareImg: BaronImg,
+            },
+          })
+        }
       }
 
       // Herald taken
       if (currentHeralds[i]! > prevHeralds[i]!) {
-        const killer = getObjectiveKiller(teamId, 'herald')
-        addEntry({
-          id: nextId++,
-          type: 'herald',
-          ingameTeamId: teamId,
-          killer,
-          victim: {
-            name: 'Sứ Giả Khe Nứt',
-            squareImg: HeraldImg,
-          },
-        })
+        if (shouldAnnounceObjective('herald')) {
+          const killer = getObjectiveKiller(teamId, 'herald')
+          addEntry({
+            id: nextId++,
+            type: 'herald',
+            ingameTeamId: teamId,
+            killer,
+            victim: {
+              name: 'Sứ Giả Khe Nứt',
+              squareImg: HeraldImg,
+            },
+          })
+        }
       }
 
       // Tower destroyed
       if (currentTowers[i]! > prevTowers[i]!) {
-        const killer = getObjectiveKiller(teamId, 'tower')
-        addEntry({
-          id: nextId++,
-          type: 'tower',
-          ingameTeamId: teamId,
-          killer,
-          victim: {
-            name: 'Trụ',
-            squareImg: TowerImg,
-          },
-        })
+        if (shouldAnnounceObjective('tower')) {
+          const killer = getObjectiveKiller(teamId, 'tower')
+          addEntry({
+            id: nextId++,
+            type: 'tower',
+            ingameTeamId: teamId,
+            killer,
+            victim: {
+              name: 'Trụ',
+              squareImg: TowerImg,
+            },
+          })
+        }
       }
     }
 

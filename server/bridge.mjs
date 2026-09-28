@@ -555,6 +555,7 @@ async function formatRiotData(raw) {
         isDead: !!p.isDead,
         respawnTimer: Math.ceil(p.respawnTimer || 0),
         role: p.position || '',
+        items: items,
         stats: items
       });
 

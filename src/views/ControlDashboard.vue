@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { ref, onMounted, computed } from 'vue'
 import { useHudSettings, type HudSettings, type FeedEventType } from '@/composables/useHudSettings'
 import { useIngameSelector, useIsInGame } from '@/composables/useIngame'
 
@@ -21,6 +21,7 @@ interface DeckButton {
   isSkin?: boolean
   isRunes?: boolean
   isKillFeed?: boolean
+  isNameSwitch?: boolean
 }
 
 // Only the real functional HUD features
@@ -36,6 +37,13 @@ const functionalButtons: DeckButton[] = [
     label: 'Bottom Scoreboard',
     subLabel: 'Bảng Người Chơi',
     key: 'scoreboardBottom',
+  },
+  {
+    id: 'scoreboardShowChampionNames',
+    label: 'Scoreboard Names',
+    subLabel: 'Tên Tuyển Thủ / Tướng',
+    key: 'scoreboardShowChampionNames',
+    isNameSwitch: true,
   },
   {
     id: 'teamRunes',
@@ -85,17 +93,82 @@ const functionalButtons: DeckButton[] = [
 function isBtnActive(btn: DeckButton): boolean {
   if (btn.isSkin) return settings.value.skinDisplayEnabled
   if (btn.isRunes) return settings.value.teamRunesEnabled
+  if (btn.isNameSwitch) return settings.value.scoreboardShowChampionNames
   if (btn.key) return !!settings.value[btn.key]
   return false
 }
 
+function getBtnSubLabel(btn: DeckButton): string {
+  if (btn.isNameSwitch) {
+    return settings.value.scoreboardShowChampionNames ? 'Hiện Tên Tướng' : 'Hiện Tên Tuyển Thủ'
+  }
+  return btn.subLabel
+}
+
 function handleBtnClick(btn: DeckButton) {
+  triggerHaptic()
   if (btn.isSkin) {
     toggleSkinDisplay()
   } else if (btn.isRunes) {
     toggleTeamRunes()
   } else if (btn.key) {
     toggleSetting(btn.key)
+  }
+}
+
+function triggerHaptic() {
+  if (typeof navigator !== 'undefined' && 'vibrate' in navigator) {
+    try { navigator.vibrate(25) } catch {}
+  }
+}
+
+const showMobileModal = ref(false)
+const serverInfo = ref<{ ip: string; port: number; controlUrl: string } | null>(null)
+const copied = ref(false)
+
+const isMobileDevice = computed(() => {
+  if (typeof window === 'undefined') return false
+  return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || window.innerWidth < 768
+})
+
+const mobileUrl = computed(() => {
+  if (serverInfo.value?.controlUrl) return serverInfo.value.controlUrl
+  if (typeof window !== 'undefined') {
+    const host = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+      ? (serverInfo.value?.ip || window.location.hostname)
+      : window.location.hostname
+    return `${window.location.protocol}//${host}:${window.location.port || 5173}/control`
+  }
+  return ''
+})
+
+async function fetchServerInfo() {
+  try {
+    const res = await fetch('/api/server-info')
+    if (res.ok) {
+      serverInfo.value = await res.json()
+    }
+  } catch {}
+}
+
+onMounted(() => {
+  fetchServerInfo()
+})
+
+async function copyUrl() {
+  try {
+    await navigator.clipboard.writeText(mobileUrl.value)
+    copied.value = true
+    setTimeout(() => { copied.value = false }, 2000)
+  } catch {
+    const input = document.createElement('input')
+    input.value = mobileUrl.value
+    document.body.appendChild(input)
+    input.select()
+    document.execCommand('copy')
+    document.body.removeChild(input)
+    copied.value = true
+    setTimeout(() => { copied.value = false }, 2000)
   }
 }
 
@@ -125,6 +198,7 @@ function deactivateAll() {
   setSkinDisplay(false)
   settings.value.teamRunesEnabled = false
   settings.value.scoreboardBottom = false
+  settings.value.scoreboardShowChampionNames = false
   settings.value.baronTimer = false
   settings.value.dragonTimer = false
   settings.value.goldGraph = false
@@ -134,9 +208,10 @@ function deactivateAll() {
 }
 
 function activateDefaults() {
-  setSkinDisplay(true)
+  setSkinDisplay(false)
   settings.value.teamRunesEnabled = false
   settings.value.scoreboardBottom = true
+  settings.value.scoreboardShowChampionNames = false
   settings.value.baronTimer = true
   settings.value.dragonTimer = true
   settings.value.goldGraph = true
@@ -166,6 +241,9 @@ function openOverlay() {
       </div>
 
       <div class="header-right">
+        <button class="action-pill mobile-btn" @click="showMobileModal = true">
+          📱 Điều Khiển Điện Thoại
+        </button>
         <button class="action-pill default" @click="activateDefaults">
           Default All
         </button>
@@ -180,6 +258,11 @@ function openOverlay() {
 
     <!-- Main Buttons Grid -->
     <main class="deck-main">
+      <div v-if="isMobileDevice" class="mobile-status-banner">
+        <span class="mobile-pulse"></span>
+        <span>Chế độ điều khiển điện thoại (Pocket Stream Deck)</span>
+      </div>
+
       <div class="deck-grid">
         <div
           v-for="btn in functionalButtons"
@@ -190,7 +273,25 @@ function openOverlay() {
         >
           <div class="card-text-wrap">
             <span class="card-label">{{ btn.label }}</span>
-            <span class="card-sub">{{ btn.subLabel }}</span>
+            <span class="card-sub">{{ getBtnSubLabel(btn) }}</span>
+          </div>
+
+          <!-- Quick switcher if it's the Scoreboard Names card -->
+          <div v-if="btn.isNameSwitch" class="team-subpills" @click.stop>
+            <button
+              class="team-pill"
+              :class="{ active: !settings.scoreboardShowChampionNames }"
+              @click="settings.scoreboardShowChampionNames = false"
+            >
+              Player
+            </button>
+            <button
+              class="team-pill blue"
+              :class="{ active: settings.scoreboardShowChampionNames }"
+              @click="settings.scoreboardShowChampionNames = true"
+            >
+              Tướng
+            </button>
           </div>
 
           <!-- Quick team switcher if it's the Skin Display card -->
@@ -274,6 +375,68 @@ function openOverlay() {
         </div>
       </div>
     </main>
+
+    <!-- Mobile Connect Modal -->
+    <Transition name="fade">
+      <div v-if="showMobileModal" class="modal-overlay" @click.self="showMobileModal = false">
+        <div class="modal-dialog">
+          <div class="modal-header">
+            <div class="modal-title-box">
+              <span class="modal-icon-badge">📱</span>
+              <div>
+                <h3 class="modal-title">Điều Khiển Bằng Điện Thoại</h3>
+                <p class="modal-subtitle">Biến smartphone thành bàn phím Stream Deck điều khiển HUD</p>
+              </div>
+            </div>
+            <button class="modal-close-btn" @click="showMobileModal = false">✕</button>
+          </div>
+
+          <div class="modal-body">
+            <div class="qr-card">
+              <div class="qr-wrapper">
+                <img
+                  :src="`https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${encodeURIComponent(mobileUrl)}&margin=8`"
+                  alt="QR Code điều khiển điện thoại"
+                  class="qr-img"
+                />
+              </div>
+              <p class="qr-caption">Quét mã bằng Camera điện thoại để mở ngay</p>
+            </div>
+
+            <div class="url-section">
+              <label class="url-label">Hoặc mở trình duyệt trên điện thoại truy cập:</label>
+              <div class="url-row">
+                <input type="text" readonly :value="mobileUrl" class="url-input" />
+                <button class="copy-action-btn" :class="{ copied }" @click="copyUrl">
+                  {{ copied ? 'Đã Chép ✓' : 'Sao Chép' }}
+                </button>
+              </div>
+            </div>
+
+            <div class="instructions-card">
+              <div class="inst-item">
+                <span class="inst-num">1</span>
+                <span>Điện thoại và máy tính cần kết nối vào <strong>cùng mạng Wi-Fi</strong>.</span>
+              </div>
+              <div class="inst-item">
+                <span class="inst-num">2</span>
+                <span>Quét mã QR hoặc truy cập đường link trên bằng Safari hoặc Chrome.</span>
+              </div>
+              <div class="inst-item">
+                <span class="inst-num">3</span>
+                <span>Mọi nút bấm trên điện thoại sẽ thay đổi HUD hiển thị trên OBS ngay lập tức!</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="modal-footer">
+            <button class="action-pill primary close-pill" @click="showMobileModal = false">
+              Đóng Cửa Sổ
+            </button>
+          </div>
+        </div>
+      </div>
+    </Transition>
   </div>
 </template>
 
@@ -620,5 +783,346 @@ function openOverlay() {
 .feed-btn.obj {
   font-size: 8px;
   padding: 1.5px 3.5px;
+}
+
+/* Mobile Button in Header */
+.action-pill.mobile-btn {
+  background: linear-gradient(135deg, rgba(14, 165, 233, 0.15), rgba(99, 102, 241, 0.2));
+  border: 1px solid rgba(56, 189, 248, 0.35);
+  color: #38bdf8;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.action-pill.mobile-btn:hover {
+  background: linear-gradient(135deg, rgba(14, 165, 233, 0.3), rgba(99, 102, 241, 0.35));
+  border-color: #38bdf8;
+  color: #ffffff;
+  box-shadow: 0 0 12px rgba(56, 189, 248, 0.25);
+}
+
+/* Mobile status banner */
+.mobile-status-banner {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  background: rgba(56, 189, 248, 0.1);
+  border: 1px solid rgba(56, 189, 248, 0.25);
+  color: #38bdf8;
+  padding: 8px 14px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 600;
+  margin-bottom: 16px;
+  width: 100%;
+  max-width: 360px;
+}
+
+.mobile-pulse {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background-color: #38bdf8;
+  box-shadow: 0 0 8px #38bdf8;
+  animation: pulse 1.8s infinite;
+}
+
+@keyframes pulse {
+  0% { transform: scale(0.95); opacity: 0.8; }
+  50% { transform: scale(1.2); opacity: 1; }
+  100% { transform: scale(0.95); opacity: 0.8; }
+}
+
+/* Modal Overlay */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.75);
+  backdrop-filter: blur(6px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 16px;
+  box-sizing: border-box;
+}
+
+.modal-dialog {
+  background: #181b20;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 20px;
+  width: 100%;
+  max-width: 440px;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.6), 0 0 30px rgba(79, 70, 168, 0.2);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  animation: modalPop 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes modalPop {
+  from { opacity: 0; transform: scale(0.94) translateY(10px); }
+  to { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+.modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 18px 20px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+}
+
+.modal-title-box {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.modal-icon-badge {
+  font-size: 24px;
+}
+
+.modal-title {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 700;
+  color: #f1f5f9;
+}
+
+.modal-subtitle {
+  margin: 2px 0 0 0;
+  font-size: 11px;
+  color: #94a3b8;
+}
+
+.modal-close-btn {
+  background: transparent;
+  border: none;
+  color: #94a3b8;
+  font-size: 18px;
+  cursor: pointer;
+  padding: 6px;
+  border-radius: 8px;
+  transition: all 0.15s;
+}
+
+.modal-close-btn:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: #ffffff;
+}
+
+.modal-body {
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+}
+
+.qr-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+.qr-wrapper {
+  background: #ffffff;
+  padding: 12px;
+  border-radius: 14px;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.35);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.qr-img {
+  width: 180px;
+  height: 180px;
+  display: block;
+}
+
+.qr-caption {
+  font-size: 12px;
+  font-weight: 600;
+  color: #38bdf8;
+  margin: 0;
+}
+
+.url-section {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.url-label {
+  font-size: 11.5px;
+  color: #94a3b8;
+}
+
+.url-row {
+  display: flex;
+  gap: 8px;
+  width: 100%;
+}
+
+.url-input {
+  flex: 1;
+  background: #111317;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  padding: 8px 12px;
+  font-size: 12px;
+  color: #e2e8f0;
+  font-family: monospace;
+  outline: none;
+}
+
+.copy-action-btn {
+  background: #333842;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  color: #ffffff;
+  padding: 8px 14px;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.15s ease;
+}
+
+.copy-action-btn:hover {
+  background: #474f5d;
+}
+
+.copy-action-btn.copied {
+  background: #16a34a;
+  border-color: #22c55e;
+}
+
+.instructions-card {
+  width: 100%;
+  background: rgba(0, 0, 0, 0.25);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 12px;
+  padding: 12px;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.inst-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  font-size: 11.5px;
+  color: #cbd5e1;
+  line-height: 1.4;
+}
+
+.inst-num {
+  background: #4f46a8;
+  color: #ffffff;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  font-weight: 700;
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+.modal-footer {
+  padding: 14px 20px;
+  border-top: 1px solid rgba(255, 255, 255, 0.07);
+  display: flex;
+  justify-content: flex-end;
+}
+
+.close-pill {
+  width: 100%;
+  text-align: center;
+  padding: 10px;
+  font-size: 13px;
+}
+
+/* Transitions */
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 0.2s ease;
+}
+
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
+}
+
+/* Mobile Responsive Optimization */
+@media (max-width: 768px) {
+  .deck-header {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+    padding: 12px 16px;
+  }
+
+  .header-left {
+    justify-content: space-between;
+    width: 100%;
+  }
+
+  .header-right {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px;
+    width: 100%;
+  }
+
+  .action-pill {
+    padding: 8px 10px;
+    font-size: 11px;
+    text-align: center;
+    justify-content: center;
+  }
+
+  .deck-main {
+    padding: 16px 12px;
+    flex-direction: column;
+    justify-content: flex-start;
+  }
+
+  .deck-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+    width: 100%;
+    max-width: 400px;
+  }
+
+  .deck-card {
+    min-height: 110px;
+    padding: 12px 6px;
+    border-radius: 14px;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .card-label {
+    font-size: 12.5px;
+  }
+
+  .card-sub {
+    font-size: 10px;
+  }
+
+  .team-pill {
+    padding: 4px 6px;
+    font-size: 10px;
+  }
 }
 </style>

@@ -20,6 +20,8 @@ import Water from '@/assets/dragon/water.png'
 import Elder from '@/assets/dragon/elder.png'
 import { handleImageError, handleImageLoad } from '@/utils/imageUtils'
 import { computed, ref, watch, onUnmounted } from 'vue'
+import { useDirectQuestProgress } from '@/composables/useDirectQuestProgress'
+import { useIngameSelector } from '@/composables/useIngame'
 
 const props = defineProps<{
   team: ingameScoreboardTeamData
@@ -29,45 +31,24 @@ const props = defineProps<{
   isMocking?: boolean
 }>()
 
-function isQuestItem(item: { id: number }) {
-  if (!item) {
-    return false
-  }
+const gameTime = useIngameSelector((s) => s.gameData.gameTime)
+const tabs = useIngameSelector((s) => s.gameData.tabs)
+const sideInfoPage = useIngameSelector((s) => s.gameData.sideInfoPage)
+const { calculatePlayerQuest } = useDirectQuestProgress()
 
-  if (item.id >= 1090 && item.id <= 1095) {
-    return true
-  }
-
-  if (item.id >= 1200 && item.id <= 1250) {
-    return true
-  }
-
-  return false
+function getQuest(player: ingameScoreboardBottomPlayerData | undefined, index: number) {
+  const teamKey = props.mirror ? 'Chaos' : 'Order'
+  const tabP = tabs.value?.[teamKey]?.players?.[index]
+  return calculatePlayerQuest(player, index, gameTime.value || 0, props.isMocking, props.mirror, tabP, sideInfoPage.value)
 }
 
-function playerHasQuestComplete(player: ingameScoreboardBottomPlayerData) {
-  if (props.isMocking) {
-    return player.respawnAt
-  }
-  const roleItem = getRoleQuest(player)
-  if (!roleItem || !isQuestItem(roleItem)) {
-    return true
-  }
-  if (!roleItem.stats || roleItem.stats.length < 2) {
-    return false
-  }
-  if (roleItem.id === 1220 || roleItem.id === 1206) {
-    return true
-  }
-  const current = roleItem.stats[0] ?? 0
-  const max = roleItem.stats[1] ?? 1
-  return current >= max
+function playerHasQuestComplete(player: ingameScoreboardBottomPlayerData, index: number) {
+  return getQuest(player, index).isComplete
 }
 
 const allQuestsAreDone = computed(() => {
-  const ourQuestsComplete = props.players.every(playerHasQuestComplete)
-  const enemyQuestsComplete = props.enemyPlayers ? props.enemyPlayers.every(playerHasQuestComplete) : true
-  return ourQuestsComplete && enemyQuestsComplete
+  if (props.isMocking) return false
+  return props.players.length > 0 && props.players.every((p, i) => getQuest(p, i).isComplete)
 })
 
 const showQuests = ref(true)
@@ -151,25 +132,50 @@ function getDragonIcon(dragonType: string) {
         v-for="(player, i) in players"
         v-if="showQuests"
         :key="i"
-        class="flex items-center justify-center gap-1 rounded-full p-1 w-6 h-6 border"
+        class="relative flex items-center justify-center w-6 h-6 rounded-full"
         :style="{
-          borderColor: playerHasQuestComplete(player)
-            ? mirror
-              ? 'var(--red-team-color)'
-              : 'var(--blue-team-color)'
-            : '#ffffff55',
-          backgroundColor: playerHasQuestComplete(player)
-            ? `color-mix(in srgb, ${mirror ? 'var(--red-team-color)' : 'var(--blue-team-color)'} 10%, transparent)`
-            : '#00000066',
-          color: playerHasQuestComplete(player)
-            ? mirror
-              ? 'var(--red-team-color)'
-              : 'var(--blue-team-color)'
-            : '#ffffff',
+          backgroundColor: '#0a0e17cc',
           '--i': mirror ? players.length - 1 - i : i,
         }"
       >
-        <component :is="roleIcons[i]" class="w-4 h-4" />
+        <svg
+          class="absolute inset-0 pointer-events-none -rotate-90"
+          width="100%"
+          height="100%"
+          viewBox="0 0 24 24"
+        >
+          <!-- Subtle background track -->
+          <circle
+            cx="12"
+            cy="12"
+            r="10"
+            fill="none"
+            :stroke="mirror ? 'rgba(244, 63, 94, 0.25)' : 'rgba(6, 182, 212, 0.25)'"
+            stroke-width="1.8"
+          />
+          <!-- Radial Progress Arc -->
+          <circle
+            v-if="getQuest(player, i).progress > 0"
+            cx="12"
+            cy="12"
+            r="10"
+            fill="none"
+            :stroke="mirror ? 'var(--red-team-color, #f43f5e)' : 'var(--blue-team-color, #06b6d4)'"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-dasharray="62.83"
+            :stroke-dashoffset="62.83 * (1 - getQuest(player, i).progress / 100)"
+            :style="{
+              filter: `drop-shadow(0 0 2.5px ${mirror ? 'var(--red-team-color, #f43f5e)' : 'var(--blue-team-color, #06b6d4)'})`,
+              transition: 'stroke-dashoffset 0.4s ease',
+            }"
+          />
+        </svg>
+        <component
+          :is="roleIcons[i]"
+          class="w-3.5 h-3.5 relative z-10 transition-colors"
+          :class="getQuest(player, i).isComplete ? (mirror ? 'text-rose-400' : 'text-cyan-400') : 'text-slate-200'"
+        />
       </div>
     </TransitionGroup>
 

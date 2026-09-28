@@ -149,7 +149,6 @@ const isUltUnlocked = computed(() => {
     :class="mirror ? 'mirrored' : ''"
     :style="{
       filter: respawnRemaining > 0 ? 'grayscale(1)' : 'grayscale(0)',
-      transition: 'filter 0.5s ease',
     }"
   >
     <!-- Ultimate icon: centered over the 2-col section -->
@@ -269,6 +268,7 @@ const isUltUnlocked = computed(() => {
   max-width: 78px;
   width: 100%;
   box-sizing: border-box;
+  transition: filter 0.5s ease;
 }
 
 .main-grid.mirrored {

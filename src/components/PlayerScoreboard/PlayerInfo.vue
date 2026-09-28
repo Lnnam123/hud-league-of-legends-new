@@ -15,6 +15,9 @@ import ProgressBar from './ProgressBar.vue'
 import LevelUpNotification from './LevelUpNotification.vue'
 import ItemBuyNotification from './ItemBuyNotification.vue'
 import { useIngameSelector } from '@/composables/useIngame'
+import { useHudSettings } from '@/composables/useHudSettings'
+
+const { settings } = useHudSettings()
 
 const props = defineProps<{
   scoreboardPlayer?: ingameScoreboardBottomPlayerData
@@ -66,10 +69,19 @@ const summonerTwo = computed(() => {
 })
 
 const playerNameNoTag = computed(() => {
+  if (settings.value.scoreboardShowChampionNames) {
+    return (
+      props.scoreboardPlayer?.champion?.name ||
+      props.scoreboardPlayer?.champion?.alias ||
+      props.tabPlayer?.championAssets?.name ||
+      props.scoreboardPlayer?.displayName ||
+      ''
+    )
+  }
   if (!props.scoreboardPlayer) return ''
   const name = props.scoreboardPlayer.displayName
   if (name) return name
-  return props.scoreboardPlayer.champion?.alias
+  return props.scoreboardPlayer.champion?.alias || ''
 })
 
 const isDead = computed(() => isPlayerDead(props.scoreboardPlayer, gameTime.value))
@@ -305,7 +317,8 @@ const resourceColor = computed(() => {
   margin-right: 4px;
   white-space: nowrap;
   overflow: hidden;
-  text-overflow: clip;
+  text-overflow: ellipsis;
+  max-width: 140px;
 }
 
 .health-grid {
