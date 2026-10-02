@@ -79,7 +79,7 @@ const isTeamfightActive = computed(() => {
 })
 
 const showPlayerScoreboard = computed(() => {
-  return !!settings.value.scoreboardBottom && !isTeamfightActive.value
+  return !!settings.value.scoreboardBottom && !settings.value.goldGraph && !isTeamfightActive.value
 })
 
 const blueBaronState = ref({ active: false, remaining: 0, gold: 0 })
@@ -211,7 +211,7 @@ const redElder = computed(() => redElderState.value)
     <SmiteReaction class="overlay-smitereaction" />
     <KillFeed v-if="settings.killFeed" class="overlay-killfeed" />
     <PlayerCameras class="overlay-playercameras" />
-    <GoldGraph class="overlay-bottom" />
+    <GoldGraph :show="!!settings.goldGraph && !isTeamfightActive" class="overlay-bottom" />
     <CompactTeamfight :show="isTeamfightActive" class="overlay-teamfight" />
   </div>
 </template>
@@ -342,9 +342,11 @@ body.control-page {
 .overlay-bottom {
   position: absolute;
   bottom: 0px;
-  left: 0x;
+  left: 0px;
   width: calc(1920px - 285px);
   height: 260px;
+  pointer-events: none;
+  z-index: 50;
 }
 
 .overlay-playerscoreboard {

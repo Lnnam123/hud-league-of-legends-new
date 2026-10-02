@@ -9,6 +9,7 @@ import type { itemWithAsset } from '@bluebottle_gg/league-broadcast-client'
 import FadeTransition from '../../transitions/FadeTransition.vue'
 import { handleImageError, handleImageLoad } from '@/utils/imageUtils'
 import { useIngameSelector } from '@/composables/useIngame'
+import { computed } from 'vue'
 
 defineOptions({ inheritAttrs: false })
 
@@ -24,7 +25,14 @@ const props = withDefaults(
 )
 
 const client = useClient()
-const gameTime = useIngameSelector((s) => s.gameData.gameTime)
+const scoreboard = useIngameSelector((s) => s.gameData.scoreboard)
+const rawGameTime = useIngameSelector((s) => s.gameData.gameTime)
+const gameTime = computed(() => {
+  if (scoreboard.value?.gameTime !== undefined && scoreboard.value.gameTime > 0) {
+    return scoreboard.value.gameTime
+  }
+  return rawGameTime.value ?? 0
+})
 
 function getItemIcon(item: itemWithAsset): string {
   return client.getCacheUrl(item.assetUrl)
@@ -68,7 +76,7 @@ function getCooldownRotationStyle(item: itemWithAsset) {
     return `rotate(0deg)`
   }
 
-  const rotation = 360 - 360 * fraction
+  const rotation = 360 * fraction
   return `rotate(${rotation}deg)`
 }
 

@@ -2,61 +2,210 @@
 import { computed, ref, watch } from 'vue'
 import { useIngameSelector } from '../../composables/useIngame'
 import { useClient } from '@/client'
+import { useHudSettings } from '@/composables/useHudSettings'
 import { handleImageError, handleImageLoad } from '@/utils/imageUtils'
 import SlideTransition from '@/transitions/SlideTransition.vue'
 
+const props = withDefaults(
+  defineProps<{
+    show?: boolean
+    variant?: 'full' | 'player-scoreboard'
+  }>(),
+  {
+    show: undefined,
+    variant: 'full',
+  },
+)
+
 const client = useClient()
+const { settings } = useHudSettings()
+
+const isVisible = computed(() => {
+  if (props.show !== undefined) return props.show
+  return !!settings.value.goldGraph
+})
+
 const scoreboard = useIngameSelector((s) => s.gameData.scoreboard)
+const rawGameTime = useIngameSelector((s) => s.gameData.gameTime)
+const gameTime = computed(() => {
+  if (scoreboard.value?.gameTime !== undefined && scoreboard.value.gameTime > 0) {
+    return scoreboard.value.gameTime
+  }
+  return rawGameTime.value ?? 0
+})
+
 const blueTeam = computed(() => scoreboard.value?.teams[0])
 const redTeam = computed(() => scoreboard.value?.teams[1])
 
 const goldGraph = useIngameSelector((s) => s.gameData.goldGraph)
 
+interface GoldPoint {
+  time: number
+  diff: number
+}
+
+const liveTimeline = ref<GoldPoint[]>([])
+
 /**
- * Parse the gold data into a per-team gold-difference series suitable for SVG rendering.
- * `goldAtTime` is keyed by game-time (seconds), each value is a map of teamId → gold.
+ * Generate a realistic, smooth historical gold curve from 0 to targetTime.
+ * Before 1:30 (90s), minion waves haven't clashed, so gold difference stays at 0.
+ * From 1:30 to targetTime, difference smoothly progresses to match currentDiff.
  */
-const series = computed(() => {
-  const current = goldGraph.value?.current
-  if (!current?.goldAtTime) return null
-
-  const entries = Object.entries(current.goldAtTime)
-    .map(([time, teams]) => ({ time: Number(time), teams }))
-    .sort((a, b) => a.time - b.time)
-
-  if (entries.length < 2) return null
-
-  // Team IDs from the data (usually 0 and 1)
-  const teamIds = Object.keys(entries[0]?.teams ?? {}).map(Number)
-  if (teamIds.length < 2) return null
-
-  const [t0, t1] = teamIds
-  const teamNames = current.teams ?? {}
-
-  //prevent undefined t0 or t1 by defaulting to 0
-  if (t0 === undefined || isNaN(t0) || t1 === undefined || isNaN(t1)) {
-    console.warn('Invalid team IDs in gold graph data, defaulting to 0 and 1')
-    return null
+function generateHistoricalCurve(targetTime: number, currentDiff: number): GoldPoint[] {
+  const tMax = Math.max(0, Math.round(targetTime))
+  if (tMax <= 0) {
+    return [
+      { time: 0, diff: 0 },
+      { time: 1, diff: currentDiff },
+    ]
   }
 
-  // Compute gold difference: positive = team 0 ahead
-  const points = entries.map((e) => ({
-    time: e.time,
-    diff: (e.teams[t0] ?? 0) - (e.teams[t1] ?? 0),
-  }))
+  if (tMax <= 90) {
+    const points: GoldPoint[] = [{ time: 0, diff: 0 }]
+    const step = Math.max(10, Math.floor(tMax / 4))
+    for (let t = step; t < tMax; t += step) {
+      const p = t / tMax
+      const diff = Math.round(p * p * currentDiff)
+      points.push({ time: t, diff })
+    }
+    points.push({ time: tMax, diff: currentDiff })
+    return points
+  }
 
-  const maxTime = points[points.length - 1]?.time ?? 0
-  const maxAbsDiff = Math.max(...points.map((p) => Math.abs(p.diff)), 1)
+  // Games past 90s (laning phase active)
+  const points: GoldPoint[] = [
+    { time: 0, diff: 0 },
+    { time: 90, diff: 0 },
+  ]
 
-  return { points, maxTime, maxAbsDiff, teamNames, teamIds: [t0, t1] as const }
+  const step = tMax > 1200 ? 30 : 15
+  for (let t = 90 + step; t < tMax; t += step) {
+    const p = (t - 90) / (tMax - 90) // 0 to 1
+    // Smooth cubic Hermite S-curve
+    const smoothP = p * p * (3 - 2 * p)
+    const diff = Math.round(smoothP * currentDiff)
+    points.push({ time: t, diff })
+  }
+
+  points.push({ time: tMax, diff: currentDiff })
+  return points
+}
+
+// Live timeline sampling and synchronization
+watch(
+  [gameTime, blueTeam, redTeam],
+  () => {
+    const t = Math.max(0, Math.round(gameTime.value ?? 0))
+    const bGold = Math.round(blueTeam.value?.gold ?? 0)
+    const rGold = Math.round(redTeam.value?.gold ?? 0)
+    const currentDiff = bGold - rGold
+
+    if (t === 0 && bGold === 0 && rGold === 0) {
+      liveTimeline.value = []
+      return
+    }
+
+    // 1. Initial creation if timeline is empty or has fewer than 2 points
+    if (liveTimeline.value.length < 2) {
+      liveTimeline.value = generateHistoricalCurve(t, currentDiff)
+      return
+    }
+
+    const firstTime = liveTimeline.value[0]?.time ?? 0
+    const lastPoint = liveTimeline.value[liveTimeline.value.length - 1]
+
+    // 2. Replay rewound or jumped backwards by > 8 seconds
+    if (t < firstTime || (lastPoint && t < lastPoint.time - 8)) {
+      liveTimeline.value = liveTimeline.value.filter((p) => p.time <= t)
+      if (liveTimeline.value.length < 2) {
+        liveTimeline.value = generateHistoricalCurve(t, currentDiff)
+      } else {
+        const tail = liveTimeline.value[liveTimeline.value.length - 1]
+        if (tail) tail.diff = currentDiff
+      }
+      return
+    }
+
+    // 3. Forward progression: record a point every 3 seconds
+    if (lastPoint && t - lastPoint.time >= 3) {
+      liveTimeline.value = [...liveTimeline.value, { time: t, diff: currentDiff }]
+    } else if (lastPoint && lastPoint.diff !== currentDiff) {
+      const updated = [...liveTimeline.value]
+      const tail = updated[updated.length - 1]
+      if (tail) tail.diff = currentDiff
+      liveTimeline.value = updated
+    }
+  },
+  { immediate: true, deep: true },
+)
+
+/**
+ * Parse the gold data into a per-team gold-difference series suitable for SVG rendering.
+ * Prioritizes backend goldGraph if available; otherwise falls back to live tracked timeline.
+ */
+const series = computed(() => {
+  // 1. Backend goldGraph if available
+  const current = goldGraph.value?.current
+  if (current?.goldAtTime && Object.keys(current.goldAtTime).length >= 2) {
+    const entries = Object.entries(current.goldAtTime)
+      .map(([time, teams]) => ({ time: Math.round(Number(time)), teams }))
+      .sort((a, b) => a.time - b.time)
+
+    const teamIds = Object.keys(entries[0]?.teams ?? {}).map(Number)
+    if (teamIds.length >= 2) {
+      const [t0, t1] = teamIds
+      const teamNames = current.teams ?? {}
+      if (t0 !== undefined && !isNaN(t0) && t1 !== undefined && !isNaN(t1)) {
+        const points = entries.map((e) => ({
+          time: e.time,
+          diff: Math.round((e.teams[t0] ?? 0) - (e.teams[t1] ?? 0)),
+        }))
+        const maxTime = Math.max(points[points.length - 1]?.time ?? 0, 1)
+        const peak = Math.max(...points.map((p) => Math.abs(p.diff)), 100)
+        const scaleStep = peak > 5000 ? 1000 : peak > 2000 ? 500 : 250
+        const maxAbsDiff = Math.max(Math.ceil(peak / scaleStep) * scaleStep, 500)
+        return { points, maxTime, maxAbsDiff, teamNames, teamIds: [t0, t1] as const }
+      }
+    }
+  }
+
+  // 2. Live tracked timeline fallback (with guaranteed dynamic fallback points)
+  const t = Math.max(0, Math.round(gameTime.value ?? 0))
+  const bGold = Math.round(blueTeam.value?.gold ?? 0)
+  const rGold = Math.round(redTeam.value?.gold ?? 0)
+  const currentDiff = bGold - rGold
+
+  let points: GoldPoint[] = []
+  if (liveTimeline.value.length >= 2) {
+    points = liveTimeline.value
+  } else {
+    points = generateHistoricalCurve(t, currentDiff)
+  }
+
+  if (points.length < 2) {
+    points = [
+      { time: 0, diff: 0 },
+      { time: Math.max(1, t), diff: currentDiff },
+    ]
+  }
+
+  const maxTime = Math.max(points[points.length - 1]?.time ?? 0, 1)
+  const peak = Math.max(...points.map((p) => Math.abs(p.diff)), 100)
+  const scaleStep = peak > 5000 ? 1000 : peak > 2000 ? 500 : 250
+  const maxAbsDiff = Math.max(Math.ceil(peak / scaleStep) * scaleStep, 500)
+
+  const teamNames = {
+    0: blueTeam.value?.teamName || blueTeam.value?.teamTag || 'Blue',
+    1: redTeam.value?.teamName || redTeam.value?.teamTag || 'Red',
+  }
+
+  return { points, maxTime, maxAbsDiff, teamNames, teamIds: [0, 1] as const }
 })
 
 /**
- * Stable display series — only updated when the data meaningfully changes.
- * Prevents all downstream computeds from re-running every 0.5 s tick when
- * the server sends an identical snapshot.
+ * Directly reactive display series. Always stays synchronized with series computed property.
  */
-const displaySeries = ref<typeof series.value>(null)
+const displaySeries = computed(() => series.value)
 
 /** Info for the "draw-in" animation when a single new point arrives. */
 const newSegmentInfo = ref<{
@@ -69,41 +218,32 @@ const newSegmentAnimKey = ref(0)
 
 watch(
   series,
-  (next) => {
+  (next, prev) => {
     if (!next) {
-      displaySeries.value = null
       newSegmentInfo.value = null
       return
     }
-    const prev = displaySeries.value
-    const changed =
-      !prev ||
-      prev.points.length !== next.points.length ||
-      prev.maxAbsDiff !== next.maxAbsDiff ||
-      prev.points.at(-1)?.diff !== next.points.at(-1)?.diff
-
-    if (!changed) return
 
     // Animate the new segment drawing in when exactly one point was added.
     if (prev && next.points.length === prev.points.length + 1) {
       const newPts = next.points.map((p) => toSvg(p.time, p.diff, next.maxTime, next.maxAbsDiff))
-      const p1 = newPts[newPts.length - 2]!
-      const p2 = newPts[newPts.length - 1]!
-      const len = Math.hypot(p2.x - p1.x, p2.y - p1.y)
-      const diff = next.points.at(-1)!.diff
-      newSegmentInfo.value = {
-        path: `M${p1.x},${p1.y} L${p2.x},${p2.y}`,
-        length: Math.max(len, 1),
-        color: diff >= 0 ? 'rgba(100,160,255,0.95)' : 'rgba(255,100,100,0.95)',
+      const p1 = newPts[newPts.length - 2]
+      const p2 = newPts[newPts.length - 1]
+      if (p1 && p2) {
+        const len = Math.hypot(p2.x - p1.x, p2.y - p1.y)
+        const diff = next.points.at(-1)?.diff ?? 0
+        newSegmentInfo.value = {
+          path: `M${p1.x},${p1.y} L${p2.x},${p2.y}`,
+          length: Math.max(len, 1),
+          color: diff >= 0 ? 'rgba(100,160,255,0.95)' : 'rgba(255,100,100,0.95)',
+        }
+        newSegmentAnimKey.value = ++_segKey
       }
-      newSegmentAnimKey.value = ++_segKey
     } else {
       newSegmentInfo.value = null
     }
-
-    displaySeries.value = next
   },
-  { immediate: true },
+  { deep: true },
 )
 
 // SVG viewBox dimensions — wide and short for a broadcast bar
@@ -216,9 +356,15 @@ const coloredSegments = computed(() => {
 })
 
 function formatGoldShort(val: number): string {
-  const abs = Math.abs(val)
-  const sign = val > 0 ? '+' : '-'
-  if (abs >= 1000) return `${sign}${(abs / 1000).toFixed(1)}k`
+  const rounded = Math.round(val)
+  const abs = Math.abs(rounded)
+  if (abs === 0) return '0'
+  const sign = rounded > 0 ? '+' : '-'
+  if (abs >= 1000) {
+    const k = abs / 1000
+    const kStr = k % 1 === 0 ? k.toFixed(0) : k.toFixed(1)
+    return `${sign}${kStr}k`
+  }
   return `${sign}${abs}`
 }
 
@@ -241,15 +387,6 @@ const notableExtrema = computed(() => {
   /**
    * Topographic prominence: how far a peak/valley stands out from the
    * surrounding terrain before being "absorbed" by a higher peak / deeper valley.
-   *
-   * For a peak at value v:
-   *   Scan left until a point strictly exceeds v → key col = min value in that span
-   *   Scan right similarly → key col = min value in that span
-   *   Prominence = v − max(leftKeyCol, rightKeyCol)
-   *
-   * For a valley, the same logic inverted.
-   * This correctly suppresses bumps on rising/falling slopes while surfacing
-   * true reversals (including brief dips into the opposing team's lead).
    */
   function computeProminence(idx: number): number {
     const v = points[idx]!.diff
@@ -285,8 +422,8 @@ const notableExtrema = computed(() => {
     }
   }
 
-  const minProminence = Math.max(300, maxAbsDiff * 0.1)
-  const minSpacing = (WIDTH - 2 * PADDING_X) * 0.1
+  const minProminence = Math.max(500, maxAbsDiff * 0.2)
+  const minSpacing = (WIDTH - 2 * PADDING_X) * 0.12
 
   const candidates: Array<{ x: number; y: number; diff: number; prominence: number }> = []
 
@@ -297,8 +434,9 @@ const notableExtrema = computed(() => {
     if ((curr > prev && curr > next) || (curr < prev && curr < next)) {
       const prominence = computeProminence(i)
       if (prominence >= minProminence) {
-        const { x, y } = toSvg(points[i]!.time, curr, maxTime, maxAbsDiff)
-        candidates.push({ x, y, diff: curr, prominence })
+        const roundedDiff = Math.round(curr)
+        const { x, y } = toSvg(points[i]!.time, roundedDiff, maxTime, maxAbsDiff)
+        candidates.push({ x, y, diff: roundedDiff, prominence })
       }
     }
   }
@@ -307,7 +445,7 @@ const notableExtrema = computed(() => {
 
   const chosen: typeof candidates = []
   for (const c of candidates) {
-    if (chosen.length >= 6) break
+    if (chosen.length >= 5) break
     if (chosen.every((e) => Math.abs(e.x - c.x) >= minSpacing)) {
       chosen.push(c)
     }
@@ -316,15 +454,13 @@ const notableExtrema = computed(() => {
   // Text is ~8px tall, ~22px wide at most. Keep labels inside the graph area.
   const LABEL_H = 9
   const LABEL_HALF_W = 14
-  const TOP_MARGIN = GRAPH_TOP + LABEL_H + 2 // enough room above
-  const BOT_MARGIN = GRAPH_BOTTOM - 3 // don't enter the time-label strip
+  const TOP_MARGIN = GRAPH_TOP + LABEL_H + 2
+  const BOT_MARGIN = GRAPH_BOTTOM - 3
 
   return chosen.map((c) => {
     const isBlue = c.diff >= 0
-    // Preferred offset: 5px above peak for blue, 12px below valley for red
     const rawLabelY = isBlue ? c.y - 5 : c.y + LABEL_H
     const labelY = Math.max(TOP_MARGIN, Math.min(BOT_MARGIN, rawLabelY))
-    // Clamp X so text never overflows left or right edge
     const labelX = Math.max(
       PADDING_X + LABEL_HALF_W,
       Math.min(WIDTH - PADDING_X - LABEL_HALF_W, c.x),
@@ -333,22 +469,27 @@ const notableExtrema = computed(() => {
   })
 })
 
-/** Vertical reference lines at every 5-minute mark. */
+/** Vertical reference lines: adaptive intervals based on match duration */
 const verticalLines = computed(() => {
   if (!displaySeries.value) return []
   const { maxTime } = displaySeries.value
-  const lines: Array<{ x: number; label: number }> = []
-  for (let t = 300; t < maxTime; t += 300) {
+  if (maxTime <= 10) return []
+
+  // Adaptive step: 1m for early game <= 6m, 2m for up to 15m, 5m for late game
+  const step = maxTime <= 360 ? 60 : maxTime <= 900 ? 120 : 300
+  const lines: Array<{ x: number; label: string }> = []
+  for (let t = step; t < maxTime; t += step) {
     const x = PADDING_X + (t / maxTime) * (WIDTH - 2 * PADDING_X)
-    lines.push({ x, label: Math.round(t / 60) })
+    const minutes = Math.floor(t / 60)
+    lines.push({ x, label: `${minutes}` })
   }
   return lines
 })
 </script>
 
 <template>
-  <SlideTransition>
-    <div v-if="goldGraph" class="gold-graph-container">
+  <SlideTransition enter-from="down" leave-to="down">
+    <div v-if="isVisible" class="gold-graph-container">
       <div class="title-container">
         <div class="-translate-y-10 flex flex-row justify-between w-full items-center">
           <span class="title-text">Gold Graph</span>
@@ -357,24 +498,34 @@ const verticalLines = computed(() => {
       </div>
 
       <div class="team-info-container">
-        <img
-          v-if="blueTeam?.teamIconUrl"
-          :src="client.getCacheUrl(blueTeam.teamIconUrl)"
-          class="team-icon"
-          style="border-left: 2px solid var(--blue-team-color)"
-          alt="Blue team"
-          @error="handleImageError"
-          @load="handleImageLoad"
-        />
-        <img
-          v-if="redTeam?.teamIconUrl"
-          :src="client.getCacheUrl(redTeam.teamIconUrl)"
-          class="team-icon"
-          style="border-left: 2px solid var(--red-team-color)"
-          alt="Red team"
-          @error="handleImageError"
-          @load="handleImageLoad"
-        />
+        <div class="team-icon-wrapper">
+          <img
+            v-if="blueTeam?.teamIconUrl"
+            :src="client.getCacheUrl(blueTeam.teamIconUrl)"
+            class="team-icon"
+            style="border-left: 3px solid var(--blue-team-color)"
+            alt="Blue team"
+            @error="handleImageError"
+            @load="handleImageLoad"
+          />
+          <span v-else class="team-tag-fallback blue">
+            {{ blueTeam?.teamTag || blueTeam?.teamName || 'BLUE' }}
+          </span>
+        </div>
+        <div class="team-icon-wrapper">
+          <img
+            v-if="redTeam?.teamIconUrl"
+            :src="client.getCacheUrl(redTeam.teamIconUrl)"
+            class="team-icon"
+            style="border-left: 3px solid var(--red-team-color)"
+            alt="Red team"
+            @error="handleImageError"
+            @load="handleImageLoad"
+          />
+          <span v-else class="team-tag-fallback red">
+            {{ redTeam?.teamTag || redTeam?.teamName || 'RED' }}
+          </span>
+        </div>
       </div>
 
       <div class="graph-container">
@@ -517,6 +668,7 @@ const verticalLines = computed(() => {
   position: relative;
   z-index: 99;
   box-sizing: border-box;
+  pointer-events: auto;
 }
 
 .title-container {
@@ -533,13 +685,13 @@ const verticalLines = computed(() => {
   color: #ffffff;
   font-size: 24px;
   font-weight: 700;
-  font-family: 'Bebas Neue', sans-serif;
+  font-family: 'CHANEY Ultra Extended', sans-serif;
 }
 
 .title-arrow {
   color: #ffffff;
   font-size: 48px;
-  font-family: 'Bebas Neue', sans-serif;
+  font-family: 'Inter', sans-serif;
 }
 
 .team-info-container {
@@ -553,11 +705,40 @@ const verticalLines = computed(() => {
   padding: 8px 0;
 }
 
+.team-icon-wrapper {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 45%;
+}
+
 .team-icon {
   width: auto;
-  max-height: 40%;
+  max-height: 90%;
   object-fit: contain;
   background-color: #12151a;
+  padding: 4px;
+}
+
+.team-tag-fallback {
+  font-size: 26px;
+  font-weight: 700;
+  font-family: 'Bebas Neue', sans-serif;
+  letter-spacing: 1.5px;
+  padding: 4px 8px;
+  background-color: #12151a;
+  border-radius: 2px;
+}
+
+.team-tag-fallback.blue {
+  color: var(--blue-team-color, #64a0ff);
+  border-left: 3px solid var(--blue-team-color, #64a0ff);
+}
+
+.team-tag-fallback.red {
+  color: var(--red-team-color, #ff6464);
+  border-left: 3px solid var(--red-team-color, #ff6464);
 }
 
 .graph-container {
@@ -588,12 +769,12 @@ const verticalLines = computed(() => {
 .pct-label {
   fill: rgba(255, 255, 255, 0.45);
   font-size: 9px;
-  font-family: 'Bebas Neue', sans-serif;
+  font-family: 'Inter', sans-serif;
 }
 
 .extrema-label {
   font-size: 8px;
-  font-family: 'Bebas Neue', sans-serif;
+  font-family: 'Inter', sans-serif;
   font-weight: 600;
   paint-order: stroke fill;
   stroke: #12151a;

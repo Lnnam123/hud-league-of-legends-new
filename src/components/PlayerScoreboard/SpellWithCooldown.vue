@@ -22,7 +22,14 @@ const props = withDefaults(
   },
 )
 
-const gameTime = useIngameSelector((s) => s.gameData.gameTime)
+const scoreboard = useIngameSelector((s) => s.gameData.scoreboard)
+const rawGameTime = useIngameSelector((s) => s.gameData.gameTime)
+const gameTime = computed(() => {
+  if (scoreboard.value?.gameTime !== undefined && scoreboard.value.gameTime > 0) {
+    return scoreboard.value.gameTime
+  }
+  return rawGameTime.value ?? 0
+})
 
 const remaining = computed(() => getRemaining(props.readyAt, gameTime.value))
 
